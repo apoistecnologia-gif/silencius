@@ -1,0 +1,17 @@
+{
+  "name": "callblocker",
+  "version": "1.0.0",
+  "description": "Bloqueador de chamadas de voz e vídeo do WhatsApp",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/cli": "^8.6.0",
+    "@capacitor/core": "^8.6.0"
+  },
+  "private": true
+}

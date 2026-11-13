@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Silêncius</string>
+    <string name="title_activity_main">Silêncius</string>
+    <string name="package_name">br.com.silencius.app</string>
+    <string name="custom_url_scheme">br.com.silencius.app</string>
+    <string name="guard_channel_name">Proteção ativa</string>
+    <string name="guard_channel_desc">Aviso discreto de que o Silêncius está vigiando as chamadas</string>
+    <string name="guard_title">Silêncius protegendo</string>
+    <string name="guard_text">Chamadas de voz e vídeo do WhatsApp estão sendo bloqueadas</string>
+    <string name="a11y_desc">O Silêncius usa este acesso apenas para identificar a tela de chamada do WhatsApp e tocar em "Recusar". Nenhum outro conteúdo do seu celular é lido ou guardado.</string>
+</resources>

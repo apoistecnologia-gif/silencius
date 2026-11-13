@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0e13">
+<title>Silêncius — bloqueador de chamadas</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <div class="logo" aria-hidden="true">
+      <img src="logo.png" alt="">
+    </div>
+    <div>
+      <h1>Silêncius</h1>
+      <p class="sub">Bloqueio de chamadas de áudio e vídeo</p>
+    </div>
+  </div>
+  <button id="power" class="power" aria-pressed="false" aria-label="Ligar ou desligar a proteção">
+    <span class="dot"></span><span id="powerLabel">Desligado</span>
+  </button>
+</header>
+
+<main>
+  <div class="waAlert" id="waAlert" hidden>
+    <span class="waAlertIco">!</span>
+    <span id="waAlertText"></span>
+    <button id="waAlertBtn">Ativar</button>
+  </div>
+  <section class="card status" id="statusCard">
+    <div class="ring" id="ring">
+      <svg viewBox="0 0 100 100">
+        <circle class="track" cx="50" cy="50" r="42"/>
+        <circle class="bar" id="bar" cx="50" cy="50" r="42"/>
+      </svg>
+      <div class="ringTxt">
+        <strong id="blockedCount">0</strong>
+        <span>chamadas<br>bloqueadas</span>
+      </div>
+    </div>
+    <div class="statusTxt">
+      <h2 id="statusTitle">Proteção desligada</h2>
+      <p id="statusBody">Ligue a proteção para que as chamadas de voz e de vídeo sejam recusadas automaticamente.</p>
+      <ul class="permList" id="permList"></ul>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3>Quem bloquear</h3>
+    <div class="segmented" role="tablist">
+      <button class="seg active" data-mode="all" role="tab">Todos</button>
+      <button class="seg" data-mode="unknown" role="tab">Só desconhecidos</button>
+      <button class="seg" data-mode="allowlist" role="tab">Só a lista</button>
+    </div>
+    <p class="hint" id="modeHint">Toda chamada de voz ou vídeo é recusada, de qualquer contato.</p>
+
+    <div class="toggles">
+      <label class="toggle">
+        <input type="checkbox" id="blockVoice" checked>
+        <span class="switch"></span>
+        <span class="tLabel"><strong>Chamadas de voz</strong><small>Recusar chamadas de áudio</small></span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="blockVideo" checked>
+        <span class="switch"></span>
+        <span class="tLabel"><strong>Chamadas de vídeo</strong><small>Recusar chamadas de vídeo</small></span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="showOverlay" checked>
+        <span class="switch"></span>
+        <span class="tLabel"><strong>Aviso na tela</strong><small>Mostrar quem tentou chamar, por alguns segundos</small></span>
+      </label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3>WhatsApp e WhatsApp Business</h3>
+    <p class="hint">As chamadas do WhatsApp não passam pelo telefone: o Silêncius as detecta pela
+      notificação de chamada e toca em "Recusar" por você.</p>
+    <div class="toggles">
+      <label class="toggle">
+        <input type="checkbox" id="waBlock" checked>
+        <span class="switch"></span>
+        <span class="tLabel"><strong>Bloquear chamadas do WhatsApp</strong><small>Voz e vídeo, de qualquer contato</small></span>
+      </label>
+    </div>
+    <ul class="permList" id="waPerm"></ul>
+  </section>
+
+  <section class="card">
+    <h3>Lista de exceções</h3>
+    <p class="hint">Usada no modo <strong>Só a lista</strong>: as chamadas destes contatos passam normalmente.</p>
+    <form id="allowForm" class="row">
+      <input id="allowInput" type="text" inputmode="tel" placeholder="Número, com DDD (+55 11 91234-5678)" autocomplete="off">
+      <button type="submit" class="btn">Adicionar</button>
+    </form>
+    <ul id="allowList" class="chips"></ul>
+  </section>
+
+  <section class="card">
+    <div class="cardHead">
+      <h3>Histórico</h3>
+      <button id="clearLog" class="linkBtn">Limpar</button>
+    </div>
+    <ul id="log" class="log"></ul>
+    <p class="empty" id="logEmpty">Nenhuma chamada bloqueada ainda.</p>
+  </section>
+
+  <section class="card note">
+    <h3>Como o bloqueio funciona</h3>
+    <p>O Silêncius registra-se como serviço de triagem de chamadas do Android. Quando uma chamada chega, o
+      sistema avisa o app antes de o telefone tocar, e o app recusa a chamada na hora — o celular não toca
+      e a chamada não fica registrada como perdida.</p>
+    <p>Vale igualmente para <strong>WhatsApp pessoal</strong>, <strong>WhatsApp Business</strong> e qualquer
+      outro app que faça chamadas pelo sistema do Android.</p>
+
+    <p>Para isso, o Silêncius precisa ser a <strong>triagem de chamadas padrão</strong> do aparelho. Android e
+      Google Play não permitem que um app bloqueie chamadas de outro aplicativo por conta própria; a
+      triagem padrão é o mecanismo oficial do sistema, e pode ser trocada a qualquer momento nas
+      configurações.</p>
+    <p>O app não tem servidor, não envia nada pela internet e guarda a lista e o histórico só no aparelho.</p>
+  </section>
+</main>
+
+<nav class="tabbar">
+  <button id="btnDefaults" class="ghost">Triagem padrão</button>
+    <button id="btnInfo" class="ghost">Diagnóstico</button>
+  <button id="btnSetup" class="ghost">Configurar</button>
+</nav>
+
+<div class="wizard" id="wizard" hidden>
+  <div class="wzBox">
+    <div class="wzTop">
+      <span id="wzStep">Passo 1 de 6</span>
+      <div class="wzDots" id="wzDots"></div>
+    </div>
+    <div class="wzIcon" id="wzIcon">☎</div>
+    <h2 id="wzTitle"></h2>
+    <p id="wzBody"></p>
+    <div class="wzNote" id="wzNote" hidden></div>
+    <button class="btn wzGo" id="wzGo">Permitir</button>
+    <button class="linkBtn wzSkip" id="wzSkip">Pular por enquanto</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
