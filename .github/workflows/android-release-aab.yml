@@ -91,6 +91,6 @@ jobs:
         if: env.SIGNING_READY == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: Silencius-2.8-code19-AAB-ASSINADO
+          name: Silencius-2.8.1-code20-AAB-ASSINADO
           path: android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
