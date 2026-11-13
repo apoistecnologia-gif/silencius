@@ -355,7 +355,7 @@ const STEPS = [
     title: "Recusar com a tela apagada",
     body: "Toque em \"Silêncius\" (em alguns celulares ele fica em \"Aplicativos instalados\" ou \"Apps baixados\"), ligue a chave e confirme. Sem isso, o celular coloca o app para dormir e as chamadas passam com a tela apagada. O Silêncius só olha a tela de chamada do WhatsApp.",
     done: (p) => p.accessibility,
-    go: () => Native.openAccessibility(),
+    go: () => openA11yDisclosure(),
     restricted: true
   },
   {
@@ -467,6 +467,33 @@ $("#btnSetup").addEventListener("click", () => {
   wz.forced = true;
   if (!wizardNext()) { wz.forced = false; return toast("Tudo configurado ✓"); }
   wizardRefresh();
+});
+
+
+/* Consentimento explícito exibido ANTES da tela oficial do Android.
+   Apenas interface: não altera o serviço nativo que recusa as chamadas. */
+function openA11yDisclosure() {
+  if (state.demo) return toast("Disponível apenas no app instalado");
+  $("#a11yDisclosure").hidden = false;
+  $("#a11yConsentAccept").focus();
+}
+
+$("#btnA11yDisclosure").addEventListener("click", openA11yDisclosure);
+
+$("#a11yConsentDecline").addEventListener("click", () => {
+  $("#a11yDisclosure").hidden = true;
+  toast("Você pode autorizar depois em Configurar.");
+});
+
+$("#a11yConsentAccept").addEventListener("click", async () => {
+  $("#a11yDisclosure").hidden = true;
+  try {
+    // A autorização permanece sob controle do usuário nas configurações do Android.
+    await Native.openAccessibility();
+    setTimeout(load, 1000);
+  } catch (_) {
+    toast("Não foi possível abrir as configurações de Acessibilidade.");
+  }
 });
 
 /* atualiza ao voltar de outra tela (ajustes, permissões) */

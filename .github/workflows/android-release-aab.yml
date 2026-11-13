@@ -1,0 +1,96 @@
+name: Silêncius - AAB Play Store
+
+on:
+  push:
+    branches:
+      - fix/playstore-consent-20261113
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-aab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout do projeto
+        uses: actions/checkout@v4
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
+
+      - name: Dependências e sincronização
+        run: |
+          npm ci
+          node --check www/app.js
+          npx cap sync android
+
+      - name: Configurar assinatura existente se disponível
+        env:
+          UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          UPLOAD_STORE_PASSWORD: ${{ secrets.APOIS_STORE_PASS }}
+          UPLOAD_KEY_ALIAS: ${{ secrets.APOIS_KEY_ALIAS }}
+          UPLOAD_KEY_PASSWORD: ${{ secrets.APOIS_KEY_PASS }}
+        run: |
+          if [ -n "$UPLOAD_KEYSTORE_BASE64" ] && [ -n "$UPLOAD_STORE_PASSWORD" ] && [ -n "$UPLOAD_KEY_ALIAS" ] && [ -n "$UPLOAD_KEY_PASSWORD" ]; then
+            printf '%s' "$UPLOAD_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/silencius-upload.jks"
+            echo "APOIS_KEYSTORE=$RUNNER_TEMP/silencius-upload.jks" >> "$GITHUB_ENV"
+            echo "SIGNING_READY=true" >> "$GITHUB_ENV"
+          else
+            echo "::error::Faltam os segredos ANDROID_KEYSTORE_BASE64, APOIS_STORE_PASS, APOIS_KEY_ALIAS ou APOIS_KEY_PASS. Não é possível gerar AAB de publicação sem a chave de upload original."
+            exit 1
+          fi
+
+      - name: Compilar AAB Release
+        working-directory: android
+        env:
+          APOIS_STORE_PASS: ${{ secrets.APOIS_STORE_PASS }}
+          APOIS_KEY_ALIAS: ${{ secrets.APOIS_KEY_ALIAS }}
+          APOIS_KEY_PASS: ${{ secrets.APOIS_KEY_PASS }}
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease --no-daemon --stacktrace
+
+      - name: Validar assinatura e marcar entrega
+        run: |
+          AAB=android/app/build/outputs/bundle/release/app-release.aab
+          test -s "$AAB"
+          if [ "$SIGNING_READY" = "true" ]; then
+            # A chave de upload da Play é autoassinada; --strict rejeita avisos normais do JAR.
+            # Exigimos validação criptográfica e correspondência exata com a Play Console.
+            jarsigner -verify "$AAB" > "$RUNNER_TEMP/jarsigner-check.log" 2>&1
+            grep -q 'jar verified' "$RUNNER_TEMP/jarsigner-check.log" || {
+              echo "::error::O AAB não passou na verificação de assinatura."
+              exit 1
+            }
+            EXPECTED_SHA256='B4:66:64:06:68:08:3B:CF:17:DF:47:BE:B1:20:CE:0D:73:79:42:0E:9B:F9:D0:28:F4:DC:87:3E:57:04:79:5A'
+            keytool -printcert -jarfile "$AAB" > "$RUNNER_TEMP/aab-cert-check.txt"
+            grep -Fq "$EXPECTED_SHA256" "$RUNNER_TEMP/aab-cert-check.txt" || {
+              echo "::error::O certificado do AAB não corresponde ao certificado da chave de upload do Silêncius na Play Console."
+              exit 1
+            }
+            echo "AAB assinado e certificado SHA-256 conferido com a Play Console."
+          fi
+
+      - name: Publicar AAB assinado
+        if: env.SIGNING_READY == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Silencius-2.8.1-code20-AAB-ASSINADO
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
