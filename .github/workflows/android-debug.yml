@@ -32,11 +32,12 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Preparar Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Instalar Android 36
-        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
+      - name: Preparar Android SDK 36
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/16.0/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$(command -v sdkmanager)"; fi
+          yes | "$SDKMANAGER" --licenses > /dev/null
+          "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
 
       - name: Instalar dependências
         run: npm ci
