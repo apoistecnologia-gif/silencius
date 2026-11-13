@@ -71,9 +71,20 @@ jobs:
           AAB=android/app/build/outputs/bundle/release/app-release.aab
           test -s "$AAB"
           if [ "$SIGNING_READY" = "true" ]; then
-            jarsigner -verify -strict "$AAB"
-            echo "AAB_KIND=SIGNED" >> "$GITHUB_ENV"
-            echo "AAB assinado: verificar se o certificado corresponde à chave de upload cadastrada na Play Console."
+            # A chave de upload da Play é autoassinada; --strict rejeita avisos normais do JAR.
+            # Exigimos validação criptográfica e correspondência exata com a Play Console.
+            jarsigner -verify "$AAB" > "$RUNNER_TEMP/jarsigner-check.log" 2>&1
+            grep -q 'jar verified' "$RUNNER_TEMP/jarsigner-check.log" || {
+              echo "::error::O AAB não passou na verificação de assinatura."
+              exit 1
+            }
+            EXPECTED_SHA256='B4:66:64:06:68:08:3B:CF:17:DF:47:BE:B1:20:CE:0D:73:79:42:0E:9B:F9:D0:28:F4:DC:87:3E:57:04:79:5A'
+            keytool -printcert -jarfile "$AAB" > "$RUNNER_TEMP/aab-cert-check.txt"
+            grep -Fq "$EXPECTED_SHA256" "$RUNNER_TEMP/aab-cert-check.txt" || {
+              echo "::error::O certificado do AAB não corresponde ao certificado da chave de upload do Silêncius na Play Console."
+              exit 1
+            }
+            echo "AAB assinado e certificado SHA-256 conferido com a Play Console."
           fi
 
       - name: Publicar AAB assinado
