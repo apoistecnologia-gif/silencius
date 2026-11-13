@@ -88,6 +88,7 @@
       </label>
     </div>
     <ul class="permList" id="waPerm"></ul>
+    <button type="button" class="a11yInfoButton" id="btnA11yDisclosure">Ler declaração de Acessibilidade</button>
   </section>
 
   <section class="card">
@@ -144,6 +145,30 @@
     <button class="btn wzGo" id="wzGo">Permitir</button>
     <button class="linkBtn wzSkip" id="wzSkip">Pular por enquanto</button>
   </div>
+</div>
+
+
+<!-- Declaração em destaque exigida pela Google Play: exibida antes de solicitar a Acessibilidade. -->
+<div class="a11yDisclosure" id="a11yDisclosure" role="dialog" aria-modal="true" aria-labelledby="a11yDisclosureTitle" hidden>
+  <section class="a11yDisclosureCard">
+    <header class="a11yDisclosureHeader">
+      <span class="a11yDisclosureIcon" aria-hidden="true">🛡</span>
+      <div>
+        <p class="a11yDisclosureEyebrow">Silêncius • Autorização opcional</p>
+        <h2 id="a11yDisclosureTitle">Permissão de Acessibilidade</h2>
+      </div>
+    </header>
+    <div class="a11yDisclosureBody">
+      <p>O <strong>Silêncius usa o Serviço de Acessibilidade</strong> do Android para identificar chamadas recebidas do <strong>WhatsApp e WhatsApp Business</strong> e acionar automaticamente o botão <strong>“Recusar”</strong>.</p>
+      <p>Para isso, o aplicativo acessa temporariamente <strong>textos e descrições de elementos da interface</strong> desses dois aplicativos, com a finalidade de verificar se há uma tela de chamada e localizar o botão de recusa.</p>
+      <p>Esse processamento ocorre <strong>somente no aparelho</strong>. O conteúdo da interface analisado pelo Serviço de Acessibilidade <strong>não é armazenado, transmitido ou compartilhado</strong> com terceiros.</p>
+      <p>A autorização é <strong>opcional</strong>. Você pode recusar agora ou desativar o serviço a qualquer momento nas configurações do Android. Sem essa autorização, o bloqueio por identificação da tela do WhatsApp pode não funcionar.</p>
+    </div>
+    <div class="a11yDisclosureActions">
+      <button type="button" class="btn a11yDisclosureAccept" id="a11yConsentAccept">Concordo e continuar</button>
+      <button type="button" class="a11yDisclosureDecline" id="a11yConsentDecline">Agora não</button>
+    </div>
+  </section>
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
