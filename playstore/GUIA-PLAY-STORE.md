@@ -2,6 +2,30 @@
 
 Versão 2.7 (versionCode 18), pacote `br.com.silencius.app`.
 
+## ⚡ Copiar e colar rápido
+
+**Notas da versão:** campo da tela "Criar versão". Cole tudo, incluindo as marcações `<pt-BR>`.
+```
+<pt-BR>
+Primeira versão do Silêncius.
+• Recusa automática de chamadas de voz e vídeo do WhatsApp e do WhatsApp Business
+• Recusa de ligações telefônicas comuns
+• Modos: todas, só desconhecidos ou todas menos uma lista de exceções
+• Funciona com a tela apagada
+• Configuração guiada, passo a passo
+</pt-BR>
+```
+
+**Pacote para enviar:** só `SILENCIUS-2.7.aab` (código 18). Se o 17 (2.6) aparecer na versão, remova; senão dá o erro "APK completamente oculto".
+
+**Avisos de "arquivo de desofuscação":** pode ignorar.
+
+**Política de privacidade:** https://apoistecnologia-gif.github.io/silencius-privacidade/
+
+**E-mail de contato:** master@apoisbrasil.com.br
+
+**Recurso gráfico (1024×500):** `banner-1024x500.png` · **Ícone (512×512):** `icone-512.png` · **Capturas:** `captura-1/2/3.png`
+
 ## Arquivos desta pasta
 
 | Arquivo | Onde usar no Play Console |
