@@ -1,12 +1,12 @@
 # Silêncius: publicar na Google Play
 
-Versão 2.6 (versionCode 17), pacote `br.com.silencius.app`.
+Versão 2.7 (versionCode 18), pacote `br.com.silencius.app`.
 
 ## Arquivos desta pasta
 
 | Arquivo | Onde usar no Play Console |
 |---|---|
-| `SILENCIUS-2.6.aab` | Versões > Produção (ou Teste interno) > Criar versão > enviar o pacote |
+| `SILENCIUS-2.7.aab` | Versões > Produção (ou Teste interno) > Criar versão > enviar o pacote |
 | `icone-512.png` | Presença na loja > Ficha principal > Ícone do app |
 | `banner-1024x500.png` | Ficha principal > Recurso gráfico |
 | `captura-*.png` | Ficha principal > Capturas de tela do telefone (mínimo 2) |
@@ -40,8 +40,8 @@ Caminho: **Testar e lançar > Testes > Teste interno**.
 
 **B. Aba "Versões" > Criar nova versão**
 1. **Assinatura de apps do Google Play:** se aparecer, clique em **Continuar** para o Google gerenciar a chave do app. Sua `apois-release.jks` vira a chave de upload.
-2. **Pacotes de apps:** clique em **Enviar** e escolha `SILENCIUS-2.6.aab`. Deve aparecer *versionCode 17 (2.6)*.
-3. **Nome da versão:** deixe o que o Console preenche (`17 (2.6)`) ou escreva `2.6`. Só você vê esse nome.
+2. **Pacotes de apps:** clique em **Enviar** e escolha `SILENCIUS-2.7.aab`. Deve aparecer *versionCode 18 (2.7)*.
+3. **Nome da versão:** deixe o que o Console preenche (`18 (2.7)`) ou escreva `2.7`. Só você vê esse nome.
 4. **Notas da versão** (até 500 caracteres; o usuário vê). Cole entre as marcações de idioma:
 
 ```

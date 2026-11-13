@@ -353,7 +353,7 @@ const STEPS = [
   {
     key: "accessibility", icon: "🛡",
     title: "Recusar com a tela apagada",
-    body: "Toque em \"Silêncius\", ligue a chave e confirme. Sem isso, o celular coloca o app para dormir e as chamadas passam com a tela apagada. O Silêncius só olha a tela de chamada do WhatsApp.",
+    body: "Toque em \"Silêncius\" (em alguns celulares ele fica em \"Aplicativos instalados\" ou \"Apps baixados\"), ligue a chave e confirme. Sem isso, o celular coloca o app para dormir e as chamadas passam com a tela apagada. O Silêncius só olha a tela de chamada do WhatsApp.",
     done: (p) => p.accessibility,
     go: () => Native.openAccessibility(),
     restricted: true
@@ -375,7 +375,7 @@ const STEPS = [
   }
 ];
 
-const wz = { open: false, skipped: new Set(), restrictedTried: new Set(), forced: false };
+const wz = { open: false, skipped: new Set(), restrictedTried: new Set(), bypass: new Set(), forced: false };
 
 function wizardNext() {
   const p = state.permissions || {};
@@ -401,17 +401,20 @@ function wizardRefresh() {
   $("#wzTitle").textContent = step.title;
   $("#wzBody").textContent = step.body;
 
-  // Android 13+ com app instalado fora da Play Store: chave bloqueada ("Configuração restrita").
-  const blocked = step.restricted && p.restricted && wz.restrictedTried.has(step.key);
+  // Android 13+ com app instalado fora da Play Store: a chave fica bloqueada ("Configuração restrita").
+  // O guia aparece ANTES de abrir os ajustes, para a pessoa liberar primeiro.
+  const blocked = step.restricted && p.restricted && !wz.bypass.has(step.key);
   const note = $("#wzNote");
   if (blocked) {
     note.hidden = false;
-    note.innerHTML = `<strong>A chave apareceu cinza ou "restrita"?</strong> O Android bloqueia isso em apps
-      baixados fora da Play Store. Para liberar:
+    note.innerHTML = `<strong>Primeiro, libere o Silêncius.</strong> O Android bloqueia esta chave em apps
+      instalados fora da Play Store (aparece "Configuração restrita"). Para liberar:
       <ol><li>Toque em <b>Abrir informações do app</b> abaixo</li>
       <li>Toque nos <b>três pontinhos ⋮</b> no canto de cima</li>
       <li>Toque em <b>Permitir configurações restritas</b> e confirme</li>
-      <li>Volte para o Silêncius</li></ol>`;
+      <li>Volte para o Silêncius</li></ol>
+      <button class="linkBtn" id="wzBypass">Já liberei, continuar</button>`;
+    $("#wzBypass").onclick = () => { wz.bypass.add(step.key); wizardRefresh(); };
     $("#wzGo").textContent = "Abrir informações do app";
     $("#wzGo").dataset.mode = "appinfo";
   } else {
@@ -442,7 +445,6 @@ $("#wzGo").addEventListener("click", async () => {
   if (!step) return finishWizard();
   if ($("#wzGo").dataset.mode === "appinfo") {
     await Native.openAppInfo();
-    wz.restrictedTried.delete(step.key);
     return;
   }
   if (step.restricted) wz.restrictedTried.add(step.key);
