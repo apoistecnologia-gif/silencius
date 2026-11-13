@@ -52,8 +52,8 @@ jobs:
             echo "APOIS_KEYSTORE=$RUNNER_TEMP/silencius-upload.jks" >> "$GITHUB_ENV"
             echo "SIGNING_READY=true" >> "$GITHUB_ENV"
           else
-            echo "SIGNING_READY=false" >> "$GITHUB_ENV"
-            echo "::warning::Chave de upload ausente. O AAB será apenas para preparação, NÃO pode ser enviado à Play Store."
+            echo "::error::Faltam os segredos ANDROID_KEYSTORE_BASE64, APOIS_STORE_PASS, APOIS_KEY_ALIAS ou APOIS_KEY_PASS. Não é possível gerar AAB de publicação sem a chave de upload original."
+            exit 1
           fi
 
       - name: Compilar AAB Release
@@ -74,8 +74,6 @@ jobs:
             jarsigner -verify -strict "$AAB"
             echo "AAB_KIND=SIGNED" >> "$GITHUB_ENV"
             echo "AAB assinado: verificar se o certificado corresponde à chave de upload cadastrada na Play Console."
-          else
-            echo "AAB_KIND=UNSIGNED-NOT-FOR-UPLOAD" >> "$GITHUB_ENV"
           fi
 
       - name: Publicar AAB assinado
@@ -83,13 +81,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Silencius-2.8-code19-AAB-ASSINADO
-          path: android/app/build/outputs/bundle/release/app-release.aab
-          if-no-files-found: error
-
-      - name: Publicar AAB sem assinatura (NÃO enviar à Play Store)
-        if: env.SIGNING_READY != 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Silencius-2.8-code19-AAB-SEM-ASSINATURA
           path: android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
