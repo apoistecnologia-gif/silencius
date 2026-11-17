@@ -7,7 +7,7 @@ import android.content.Intent
 /** Religa o serviço de proteção depois de reiniciar o celular ou atualizar o app. */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent?) {
-        if (Prefs.isEnabled(ctx)) {
+        if (Prefs.isEnabled(ctx) && SubscriptionAccess.isAllowed(ctx)) {
             GuardService.start(ctx)
             WatchdogReceiver.schedule(ctx)
         }
