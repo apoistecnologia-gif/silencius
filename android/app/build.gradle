@@ -8,8 +8,8 @@ android {
         applicationId "br.com.silencius.app"
         minSdkVersion 29
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 20
-        versionName "2.7.2"
+        versionCode 100
+        versionName "2.7.3"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
