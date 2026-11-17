@@ -98,6 +98,15 @@ if (Billing && isNative && Billing.addListener) {
   Billing.addListener("purchaseUpdated", ({ hasPurchased }) => {
     if (hasPurchased) toast("Compra recebida. Confirmando assinatura com a Google Play.");
   });
+  Billing.addListener("subscriptionVerificationFailed", ({ diagnosticCode }) => {
+    const code = typeof diagnosticCode === "string" && /^[A-Za-z0-9_]{3,70}$/.test(diagnosticCode)
+      ? diagnosticCode : "VERIFICACAO_INDISPONIVEL";
+    const status = document.querySelector("#billingStatus");
+    const info = document.querySelector("#billingText");
+    status.textContent = "Verificação pendente";
+    info.textContent = "Google Play ainda não confirmou esta assinatura. Código de suporte: " + code +
+      ". Não tente contratar novamente antes de resolver a verificação.";
+  });
 }
 
 document.querySelector("#billingStart").addEventListener("click", async () => {
@@ -112,7 +121,11 @@ document.querySelector("#billingRestore").addEventListener("click", async () => 
     if (result.verified) load();
     toast(result.active ? "Assinatura confirmada pelo Google Play." :
       result.found ? "Compra recebida; validação pendente." : "Nenhuma assinatura ativa encontrada.");
-  } catch (e) { toast("Falha ao consultar a assinatura"); }
+  } catch (e) {
+    const match = String(e?.message || e || "").match(/(?:HTTP_[0-9]{3}_[a-z0-9_]+|TIMEOUT|SEM_DNS|FALHA_TLS|VERIFICACAO_INDISPONIVEL)/);
+    const code = match ? match[0] : "VERIFICACAO_INDISPONIVEL";
+    toast("Falha ao consultar a assinatura (" + code + ")");
+  }
 });
 
 
