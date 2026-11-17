@@ -62,7 +62,7 @@ class ScreeningService : CallScreeningService() {
     private fun shouldAllow(details: Call.Details): Boolean {
         val ctx = applicationContext
 
-        if (!Prefs.isEnabled(ctx)) return true
+        if (!Prefs.isEnabled(ctx) || !SubscriptionAccess.isAllowed(ctx)) return true
 
         val isVideo = details.videoState != VideoProfile.STATE_AUDIO_ONLY
 
