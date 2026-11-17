@@ -66,7 +66,12 @@ async function getAccessToken(credentials) {
 async function playRequest(url, accessToken, method = 'GET') {
   const response = await fetch(url, {
     method,
-    headers: { authorization: 'Bearer ' + accessToken, accept: 'application/json' },
+    headers: {
+      authorization: 'Bearer ' + accessToken,
+      accept: 'application/json',
+      ...(method === 'POST' ? { 'content-type': 'application/json' } : {})
+    },
+    ...(method === 'POST' ? { body: '{}' } : {}),
     signal: AbortSignal.timeout(10000)
   });
   if (!response.ok) {
