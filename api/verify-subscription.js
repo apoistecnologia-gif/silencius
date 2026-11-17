@@ -15,6 +15,18 @@ const PRODUCT_ID = 'silencius_premium';
 const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/androidpublisher';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
+function billingError(stage, status) {
+  const error = new Error('Falha de verificação Google Play');
+  error.stage = stage;
+  if (Number.isInteger(status)) error.status = status;
+  return error;
+}
+function diagnosticCode(error) {
+  const stage = /^[a-z_]+$/.test(error?.stage || '') ? error.stage : 'unknown';
+  const status = Number.isInteger(error?.status) ? String(error.status) : 'error';
+  return stage + '_' + status;
+}
+
 function evaluateSubscription(info, now = Date.now()) {
   const lines = Array.isArray(info?.lineItems)
     ? info.lineItems.filter(item => item.productId === PRODUCT_ID)
@@ -57,39 +69,46 @@ async function getAccessToken(credentials) {
     }),
     signal: AbortSignal.timeout(10000)
   });
-  if (!response.ok) throw new Error('Falha de autenticação Google');
+  if (!response.ok) throw billingError('google_oauth', response.status);
   const result = await response.json();
-  if (!result.access_token) throw new Error('Google não retornou token de acesso');
+  if (!result.access_token) throw billingError('google_oauth', 502);
   return result.access_token;
 }
 
 async function playRequest(url, accessToken, method = 'GET') {
-  const response = await fetch(url, {
-    method,
-    headers: {
-      authorization: 'Bearer ' + accessToken,
-      accept: 'application/json',
-      ...(method === 'POST' ? { 'content-type': 'application/json' } : {})
-    },
-    ...(method === 'POST' ? { body: '{}' } : {}),
-    signal: AbortSignal.timeout(10000)
-  });
-  if (!response.ok) {
-    const err = new Error('Google Play Developer API retornou ' + response.status);
-    err.status = response.status;
-    throw err;
+  const stage = method === 'POST' ? 'google_acknowledge' : 'google_purchase_lookup';
+  let response;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      response = await fetch(url, {
+        method,
+        headers: {
+          authorization: 'Bearer ' + accessToken,
+          accept: 'application/json',
+          ...(method === 'POST' ? { 'content-type': 'application/json' } : {})
+        },
+        ...(method === 'POST' ? { body: '{}' } : {}),
+        signal: AbortSignal.timeout(10000)
+      });
+    } catch (_) {
+      if (attempt === 0) continue;
+      throw billingError(stage + '_network');
+    }
+    if (attempt === 0 && (response.status === 429 || response.status >= 500)) continue;
+    break;
   }
+  if (!response?.ok) throw billingError(stage, response?.status || 503);
   return response.status === 204 ? null : response.text().then(text => text ? JSON.parse(text) : null);
 }
 
 async function verifyPurchase(purchaseToken) {
   const packageName = process.env.GOOGLE_PLAY_PACKAGE_NAME || 'br.com.silencius.app';
-  if (packageName !== 'br.com.silencius.app') throw new Error('Pacote Google Play não corresponde ao Silêncius');
+  if (packageName !== 'br.com.silencius.app') throw billingError('invalid_package');
   const secret = process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON;
-  if (!secret) throw new Error('Credenciais da Google Play não configuradas');
+  if (!secret) throw billingError('google_credentials_missing');
   const credentials = JSON.parse(secret);
   if (!credentials.client_email || !credentials.private_key) {
-    throw new Error('Conta de serviço inválida');
+    throw billingError('google_credentials_invalid');
   }
   const token = await getAccessToken(credentials);
   const base = 'https://androidpublisher.googleapis.com/androidpublisher/v3/applications/' +
@@ -98,7 +117,7 @@ async function verifyPurchase(purchaseToken) {
     base + '/subscriptionsv2/tokens/' + encodeURIComponent(purchaseToken), token
   );
   if (sub.packageName !== packageName) {
-    throw new Error('Compra associada a outro aplicativo');
+    throw billingError('google_purchase_package_mismatch');
   }
   const state = evaluateSubscription(sub);
   if (state.active && sub.acknowledgementState === 'ACKNOWLEDGEMENT_STATE_PENDING') {
@@ -109,6 +128,9 @@ async function verifyPurchase(purchaseToken) {
       token,
       'POST'
     );
+    state.acknowledged = true;
+  } else {
+    state.acknowledged = sub.acknowledgementState === 'ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED';
   }
   return state;
 }
@@ -138,12 +160,15 @@ module.exports = async function handler(req, res) {
     const state = await verifyPurchase(purchaseToken);
     return res.status(200).json(state);
   } catch (error) {
-    // Não registrar compra, token nem credenciais em logs.
+    // Diagnóstico restrito ao estágio e ao status HTTP. NÃO imprimir token, corpo, URL, credenciais ou dados do comprador.
+    const diagnostic = diagnosticCode(error);
+    console.warn('[SilenciusBilling] verification_failed', diagnostic);
     const code = error.status === 404 || error.status === 400 ? 400 : 503;
     return res.status(code).json({
       active: false,
       error: code === 400 ? 'Compra não encontrada na Google Play'
-        : 'Validação temporariamente indisponível'
+        : 'Validação temporariamente indisponível',
+      diagnosticCode: diagnostic
     });
   }
 };
