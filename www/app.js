@@ -16,6 +16,7 @@ async function loadBilling() {
   const status = document.querySelector("#billingStatus");
   button.disabled = true;
   billingReadyToPurchase = false;
+  document.querySelector("#billingTitle").textContent = "Silêncius Premium";
   if (!Billing || !isNative) {
     status.textContent = "Demonstração";
     info.textContent = "Assinaturas disponíveis apenas no aplicativo instalado pela Google Play.";
@@ -32,8 +33,13 @@ async function loadBilling() {
     if (selected && selected.formattedPrice) {
       price.textContent = (trial ? "Depois, " : "") + selected.formattedPrice + " por mês";
     }
-    if (!trial) {
-      document.querySelector("#billingTitle").textContent = "Silêncius Premium";
+    if (trial) {
+      document.querySelector("#billingTitle").textContent = "Experimente por 3 dias grátis";
+      document.querySelector("#billingFine").textContent =
+        "Cancele pelo Google Play antes do fim do teste para evitar a primeira mensalidade.";
+    } else {
+      document.querySelector("#billingFine").textContent =
+        "Sem teste gratuito para esta conta. O valor e a recorrência são confirmados pela Google Play.";
     }
     if (config.purchaseEnabled && selected) {
       status.textContent = trial ? "Teste disponível" : "Assinatura mensal";
@@ -43,6 +49,11 @@ async function loadBilling() {
       button.textContent = trial ? "Ativar 3 dias grátis" : "Assinar pelo Google Play";
       button.disabled = false;
       billingReadyToPurchase = true;
+      try {
+        const entitlement = await Billing.restorePurchases();
+        showVerifiedPremium(entitlement);
+        if (entitlement.verified) load();
+      } catch (_) { /* não bloquear a interface durante falha de rede */ }
     } else {
       status.textContent = "Em preparação";
       info.textContent = "O plano está sendo configurado. Não há cobranças habilitadas nesta versão de teste.";
@@ -71,6 +82,7 @@ function showVerifiedPremium(result) {
 if (Billing && isNative && Billing.addListener) {
   Billing.addListener("subscriptionVerified", ({ active, verified, expiryTime }) => {
     showVerifiedPremium({ active, verified, expiryTime });
+    load();
   });
   Billing.addListener("purchaseUpdated", ({ hasPurchased }) => {
     if (hasPurchased) toast("Compra recebida. Confirmando assinatura com a Google Play.");
@@ -86,6 +98,7 @@ document.querySelector("#billingRestore").addEventListener("click", async () => 
   try {
     const result = await Billing.restorePurchases();
     showVerifiedPremium(result);
+    if (result.verified) load();
     toast(result.active ? "Assinatura confirmada pelo Google Play." :
       result.found ? "Compra recebida; validação pendente." : "Nenhuma assinatura ativa encontrada.");
   } catch (e) { toast("Falha ao consultar a assinatura"); }
@@ -112,7 +125,9 @@ const state = {
   blockedCount: 0,
   log: [],
   permissions: { screening: false, overlay: false, notifications: false, listener: false, accessibility: false },
-  demo: false
+  demo: false,
+  premiumRequired: false,
+  premiumActive: true
 };
 
 /* ---------------- utilidades ---------------- */
@@ -172,9 +187,10 @@ function demoState() {
 
 function render() {
   const p = state.permissions;
-  const active = state.enabled && p.screening;
+  const active = state.enabled && p.screening && (!state.premiumRequired || state.premiumActive);
 
   $("#power").setAttribute("aria-pressed", String(active));
+  $("#power").disabled = !!(state.premiumRequired && !state.premiumActive);
   $("#powerLabel").textContent = active ? "Ligado" : "Desligado";
 
   $("#statusTitle").textContent = active ? "Proteção ativa" : "Proteção desligada";
@@ -184,7 +200,9 @@ function render() {
         : state.mode === "unknown"
           ? "Chamadas de números fora da agenda serão recusadas."
           : "Qualquer chamada de voz ou de vídeo será recusada antes de o celular tocar.")
-    : "Ligue a proteção para que as chamadas de voz e de vídeo sejam recusadas automaticamente.";
+    : state.premiumRequired && !state.premiumActive
+      ? "Ative ou restaure sua assinatura Premium para ligar a proteção."
+      : "Ligue a proteção para que as chamadas de voz e de vídeo sejam recusadas automaticamente.";
 
   const count = state.blockedCount || 0;
   $("#blockedCount").textContent = count > 999 ? "999+" : String(count);
@@ -280,7 +298,9 @@ async function load() {
       blockedCount: s.blockedCount || 0,
       log: s.log || [],
       permissions: s.permissions || state.permissions,
-      onboarded: !!s.onboarded
+      onboarded: !!s.onboarded,
+      premiumRequired: !!s.premiumRequired,
+      premiumActive: s.premiumActive !== false
     });
   } catch (e) {
     toast("Não foi possível ler as configurações");
@@ -319,6 +339,10 @@ $("#power").addEventListener("click", async () => {
     return save({});
   }
   if (!state.enabled) {
+    if (state.premiumRequired && !state.premiumActive) {
+      toast("Ative sua assinatura Premium para ligar a proteção.");
+      return;
+    }
     // ligar: precisa da triagem de chamadas padrão
     if (!state.permissions.screening) {
       toast("Escolha o Silêncius como triagem de chamadas");
@@ -470,6 +494,11 @@ function wizardNext() {
 
 function wizardRefresh() {
   if (state.demo) return;
+  if (state.premiumRequired && !state.premiumActive) {
+    wz.open = false;
+    $("#wizard").hidden = true;
+    return;
+  }
   const shouldOpen = wz.forced || !state.onboarded;
   const step = shouldOpen ? wizardNext() : null;
   if (!step) {
