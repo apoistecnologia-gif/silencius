@@ -34,7 +34,7 @@ class SilenciusBillingPlugin : Plugin() {
 
     private var client: BillingClient? = null
     private var connecting = false
-    private val pendingActions = mutableListOf<() -> Unit>()
+    private val pendingActions = mutableListOf<Pair<PluginCall, () -> Unit>>()
 
     override fun load() {
         client = BillingClient.newBuilder(context)
@@ -65,7 +65,7 @@ class SilenciusBillingPlugin : Plugin() {
             action()
             return
         }
-        pendingActions.add(action)
+        pendingActions.add(call to action)
         if (connecting) return
         connecting = true
         c.startConnection(object : BillingClientStateListener {
@@ -74,14 +74,12 @@ class SilenciusBillingPlugin : Plugin() {
                 val queued = pendingActions.toList()
                 pendingActions.clear()
                 if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                    // Cada ação usa o mesmo call que foi enfileirado; falha é comunicada pelo plugin.
-                    notifyListeners("billingConnectionFailed", JSObject().apply {
-                        put("responseCode", result.responseCode)
-                        put("message", result.debugMessage)
-                    })
+                    queued.forEach { (pendingCall, _) ->
+                        pendingCall.reject("Falha de conexão com o Google Play: ${result.debugMessage}")
+                    }
                     return
                 }
-                queued.forEach { it.invoke() }
+                queued.forEach { (_, queuedAction) -> queuedAction.invoke() }
             }
             override fun onBillingServiceDisconnected() {
                 connecting = false
