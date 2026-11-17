@@ -7,6 +7,21 @@ const Native = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor
 const isNative = !!(Native && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 const Billing = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SilenciusBilling) || null;
 let billingReadyToPurchase = false;
+let lastBillingSync = 0;
+
+async function syncPremiumOnResume() {
+  if (!Billing || !isNative || Date.now() - lastBillingSync < 60000) return;
+  try {
+    const config = await Billing.getConfig();
+    if (!config.purchaseEnabled) return;
+    lastBillingSync = Date.now();
+    const entitlement = await Billing.restorePurchases();
+    showVerifiedPremium(entitlement);
+    if (entitlement.verified) load();
+  } catch (_) {
+    // Conectividade intermitente não deve bloquear a interface nem apagar o direito de uso em cache.
+  }
+}
 
 /* Esta tela não altera Prefs, nem liga/desliga serviços. Só informa planos reais do Play. */
 async function loadBilling() {
@@ -49,11 +64,7 @@ async function loadBilling() {
       button.textContent = trial ? "Ativar 3 dias grátis" : "Assinar pelo Google Play";
       button.disabled = false;
       billingReadyToPurchase = true;
-      try {
-        const entitlement = await Billing.restorePurchases();
-        showVerifiedPremium(entitlement);
-        if (entitlement.verified) load();
-      } catch (_) { /* não bloquear a interface durante falha de rede */ }
+      await syncPremiumOnResume();
     } else {
       status.textContent = "Em preparação";
       info.textContent = "O plano está sendo configurado. Não há cobranças habilitadas nesta versão de teste.";
@@ -586,9 +597,9 @@ $("#btnSetup").addEventListener("click", () => {
 
 /* atualiza ao voltar de outra tela (ajustes, permissões) */
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) load();
+  if (!document.hidden) { load(); syncPremiumOnResume(); }
 });
-window.addEventListener("focus", () => load());
+window.addEventListener("focus", () => { load(); syncPremiumOnResume(); });
 try {
   window.Capacitor.Plugins.App && window.Capacitor.Plugins.App.addListener("resume", () => load());
 } catch (_) {}
