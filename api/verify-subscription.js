@@ -84,6 +84,7 @@ async function playRequest(url, accessToken, method = 'GET') {
 
 async function verifyPurchase(purchaseToken) {
   const packageName = process.env.GOOGLE_PLAY_PACKAGE_NAME || 'br.com.silencius.app';
+  if (packageName !== 'br.com.silencius.app') throw new Error('Pacote Google Play não corresponde ao Silêncius');
   const secret = process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON;
   if (!secret) throw new Error('Credenciais da Google Play não configuradas');
   const credentials = JSON.parse(secret);
@@ -96,7 +97,7 @@ async function verifyPurchase(purchaseToken) {
   const sub = await playRequest(
     base + '/subscriptionsv2/tokens/' + encodeURIComponent(purchaseToken), token
   );
-  if (sub.packageName && sub.packageName !== packageName) {
+  if (sub.packageName !== packageName) {
     throw new Error('Compra associada a outro aplicativo');
   }
   const state = evaluateSubscription(sub);
@@ -115,9 +116,18 @@ async function verifyPurchase(purchaseToken) {
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Use POST' });
+  }
+  const size = Number(req.headers?.['content-length'] || 0);
+  if (Number.isFinite(size) && size > 8192) {
+    return res.status(413).json({ error: 'Corpo da requisição muito grande' });
+  }
+  const contentType = req.headers?.['content-type'] || '';
+  if (!/^application\/json(?:\s*;|$)/i.test(contentType)) {
+    return res.status(415).json({ error: 'Formato da requisição não aceito' });
   }
   const purchaseToken = req.body?.purchaseToken;
   if (typeof purchaseToken !== 'string' || purchaseToken.length < 8 ||
