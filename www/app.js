@@ -614,7 +614,10 @@ document.addEventListener("visibilitychange", () => {
 });
 window.addEventListener("focus", () => { load(); syncPremiumOnResume(); });
 try {
-  window.Capacitor.Plugins.App && window.Capacitor.Plugins.App.addListener("resume", () => load());
+  window.Capacitor.Plugins.App && window.Capacitor.Plugins.App.addListener("resume", () => {
+    load();
+    syncPremiumOnResume();
+  });
 } catch (_) {}
 // enquanto o assistente estiver aberto, confere a cada 1,5 s (janelas do sistema não pausam o app)
 setInterval(() => { if (wz.open && !document.hidden) load(); }, 1500);
@@ -622,3 +625,5 @@ setInterval(() => { if (wz.open && !document.hidden) load(); }, 1500);
 loadBilling();
 load();
 setInterval(() => { if (!document.hidden) load(); }, 20000);
+// Renovação/restauração enquanto o aplicativo permanece aberto: consulta limitada a 1/min.
+setInterval(() => { if (!document.hidden) syncPremiumOnResume(); }, 60_000);
