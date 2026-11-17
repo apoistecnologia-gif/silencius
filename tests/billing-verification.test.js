@@ -31,3 +31,34 @@ test('recusa outro produto, lineItems vazios e respostas incompletas', () => {
   assert.equal(evaluateSubscription({}, now).active, false);
   assert.equal(evaluateSubscription({ lineItems: null }, now).active, false);
 });
+
+function mockResponse() {
+  return {
+    statusCode: 200,
+    headers: {},
+    setHeader(name, value) { this.headers[name.toLowerCase()] = value; return this; },
+    status(code) { this.statusCode = code; return this; },
+    json(body) { this.body = body; return this; }
+  };
+}
+async function expectRequestRejected(req, statusCode) {
+  const res = mockResponse();
+  await require('../api/verify-subscription')(req, res);
+  assert.equal(res.statusCode, statusCode);
+  assert.equal(res.headers['cache-control'], 'no-store');
+}
+test('nega GET e corpo malformado sem consultar o Google', async () => {
+  await expectRequestRejected({ method: 'GET', headers: {} }, 405);
+  await expectRequestRejected({
+    method: 'POST', headers: { 'content-type': 'text/plain' },
+    body: { purchaseToken: 'abcdefgh' }
+  }, 415);
+  await expectRequestRejected({
+    method: 'POST', headers: { 'content-type': 'application/json', 'content-length': '9000' },
+    body: { purchaseToken: 'abcdefgh' }
+  }, 413);
+  await expectRequestRejected({
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: { purchaseToken: 'curto' }
+  }, 400);
+});
