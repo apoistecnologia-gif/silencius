@@ -9,6 +9,7 @@ const Billing = (window.Capacitor && window.Capacitor.Plugins && window.Capacito
 let billingReadyToPurchase = false;
 let lastBillingSync = 0;
 let premiumVerifiedActive = null;
+let premiumVerifiedExpiry = "";
 
 function refreshPremiumPurchaseButton() {
   const button = document.querySelector("#billingStart");
@@ -17,6 +18,10 @@ function refreshPremiumPurchaseButton() {
     billingReadyToPurchase = false;
     button.disabled = true;
     button.textContent = "Assinatura já ativa";
+    document.querySelector("#billingStatus").textContent = "Assinatura ativa";
+    document.querySelector("#billingText").textContent =
+      "Premium ativo" + (premiumVerifiedExpiry ? " até " + premiumVerifiedExpiry : "") +
+      ". Gerencie sua renovação e cancelamento pelo Google Play.";
     document.querySelector("#billingFine").textContent =
       "Sua assinatura está ativa. Gerencie a renovação ou o cancelamento na Google Play.";
   }
@@ -98,13 +103,12 @@ function showVerifiedPremium(result) {
     premiumVerifiedActive = true;
     status.textContent = "Assinatura ativa";
     const exp = result.expiryTime ? new Date(result.expiryTime) : null;
-    const expiry = exp && Number.isFinite(exp.getTime())
+    premiumVerifiedExpiry = exp && Number.isFinite(exp.getTime())
       ? exp.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "";
-    info.textContent = "Premium ativo" + (expiry ? " até " + expiry : "") +
-      ". Gerencie sua renovação e cancelamento pelo Google Play.";
     refreshPremiumPurchaseButton();
   } else if (result && result.verified && !result.active) {
     premiumVerifiedActive = false;
+    premiumVerifiedExpiry = "";
     status.textContent = "Assinatura não ativa";
     info.textContent = "Não encontramos uma assinatura ativa nesta conta Google Play.";
     // A oferta será recalculada pela Google Play ao carregar as opções.
