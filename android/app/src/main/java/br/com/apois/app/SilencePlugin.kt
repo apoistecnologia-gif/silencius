@@ -53,6 +53,7 @@ class SilencePlugin : Plugin() {
         ret.put("permissions", perms)
         ret.put("onboarded", Prefs.get(ctx).getBoolean("onboarded", false))
         ret.put("premiumActive", SubscriptionAccess.isAllowed(ctx))
+        ret.put("premiumRequired", BuildConfig.BILLING_ENFORCEMENT_ENABLED)
         ret.put("premiumExpiryMs", SubscriptionAccess.expiresAt(ctx))
 
         call.resolve(ret)
