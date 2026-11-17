@@ -99,8 +99,8 @@ if (cd android && bash ./gradlew --no-daemon --max-workers=2 --console=plain :ap
   if "$JAVA_HOME/bin/jarsigner" -verify "$bundle" >> "$LOG" 2>&1; then
     echo
     echo "✅ AAB ASSINADO GERADO E ASSINATURA VERIFICADA."
-    version_code=$(sed -nE 's/^[[:space:]]*versionCode[[:space:]]+([0-9]+).*/\\1/p' "$ROOT/android/app/build.gradle" | head -n 1)
-    version_name=$(sed -nE 's/^[[:space:]]*versionName[[:space:]]+"([^"]+)".*/\\1/p' "$ROOT/android/app/build.gradle" | head -n 1)
+    version_code=$(sed -nE 's/^[[:space:]]*versionCode[[:space:]]+([0-9]+).*/\1/p' "$ROOT/android/app/build.gradle" | head -n 1)
+    version_name=$(sed -nE 's/^[[:space:]]*versionName[[:space:]]+"([^"]+)".*/\1/p' "$ROOT/android/app/build.gradle" | head -n 1)
     [[ "$version_code" =~ ^[0-9]+$ && -n "$version_name" ]] || {
       echo "Não foi possível identificar a versão; AAB permanece em $bundle"
       exit 1
