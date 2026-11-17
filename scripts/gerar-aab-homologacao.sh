@@ -13,8 +13,8 @@ if [[ "$(git branch --show-current)" != "$BRANCH" ]]; then
   exit 2
 fi
 
-if ! grep -Eq '^[[:space:]]*versionCode[[:space:]]+101([[:space:]]|$)' android/app/build.gradle ||
-   ! grep -Eq '^[[:space:]]*versionName[[:space:]]+"2\.7\.4"' android/app/build.gradle; then
+if ! grep -Eq '^[[:space:]]*versionCode[[:space:]]+102([[:space:]]|$)' android/app/build.gradle ||
+   ! grep -Eq '^[[:space:]]*versionName[[:space:]]+"2\.7\.5"' android/app/build.gradle; then
   echo "ERRO: versão de desenvolvimento inesperada. Não vou gerar um AAB com versão incorreta."
   exit 2
 fi
