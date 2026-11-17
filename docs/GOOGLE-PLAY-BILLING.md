@@ -34,10 +34,14 @@ pelo Billing, e a tela da Google Play confirma as condições antes da contrata�
 O arquivo `api/verify-subscription.js` é uma função HTTP Node 20+ preparada
 para Vercel. Não há credenciais nem chaves privadas no Git.
 
-1. Habilitar a Google Play Developer API no Google Cloud; vincular a conta do
-   desenvolvedor ao Google Cloud no Play Console quando exigido.
-2. Criar uma **conta de serviço própria** com acesso mínimo às informações de
-   compras/assinaturas no Play Console.
+1. Escolher um projeto no Google Cloud e habilitar a **Google Play Developer API**.
+   Conforme a documentação atual, não é necessário vincular a conta de desenvolvedor
+   a um projeto Cloud por um fluxo de vínculo separado.
+2. Criar uma **conta de serviço própria** em IAM > Contas de serviço. No Google Play
+   Console > Usuários e permissões, convidar o e-mail dessa conta e conceder:
+   - Visualizar dados financeiros, pedidos e respostas a pesquisas de cancelamento;
+   - Gerenciar pedidos e assinaturas.
+   Restringir o acesso ao aplicativo Silêncius sempre que a interface permitir.
 3. Configurar no serviço hospedado, como variáveis privadas de ambiente:
    - `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`: conteúdo completo do JSON da conta de serviço;
    - `GOOGLE_PLAY_PACKAGE_NAME=br.com.silencius.app`.
@@ -59,17 +63,29 @@ indefinido com base em simples dados do aparelho.
 ## Compilação em nuvem pelo GitHub Codespaces
 
 Abrir um Codespace nesta branch, com JDK 21 e Android SDK API 36.
-Definir, no ambiente seguro do Codespace, as variáveis:
+O script `scripts/gerar-aab-assinado.sh` **desativa a cobrança por padrão**.
 
-- `SILENCIUS_BILLING_VERIFY_URL=https://<dominio-do-servidor>/api/verify-subscription`
-- `SILENCIUS_ENFORCE_BILLING=true` **apenas quando servidor e Console estiverem testados**
+Depois da implantação e validação do servidor HTTPS, para uma versão
+**exclusivamente de teste interno**, configurar no mesmo terminal:
 
-Sem a segunda variável, o app **não inicia cobrança e preserva os serviços de
-bloqueio**; é proposital para evitar bloquear usuários durante a preparação.
-Quando habilitada, somente uma assinatura validada permite os serviços de bloqueio.
+```bash
+export SILENCIUS_INTERNAL_BILLING_TEST=1
+export SILENCIUS_BILLING_VERIFY_URL="https://<dominio-do-servidor>/api/verify-subscription"
+bash scripts/gerar-aab-assinado.sh
+```
+
+O script só ativa a compra se as duas variáveis estiverem preenchidas
+corretamente. Use uma conta de **testador de licença** para evitar cobranças reais
+em homologação. Nunca envie para produção sem verificar cancelamento, renovação,
+estados de pagamento e permissões de proteção.
+
+Sem essa configuração explícita, o aplicativo **não inicia cobrança e preserva
+o comportamento dos serviços de bloqueio**.
+Quando a cobrança estiver habilitada, somente uma assinatura validada permitirá
+a proteção.
 
 O AAB de teste deve manter o mesmo applicationId `br.com.silencius.app` e
-usar versionCode maior que o publicado; versão de desenvolvimento atual: 19.
+usar versionCode maior que o publicado; versão de desenvolvimento atual: 101 (2.7.4).
 Assinar com a **mesma chave de upload cadastrada na Google Play**, fornecida de
 forma segura no Codespaces, sem versionar a chave e sem imprimir suas senhas.
 
@@ -97,7 +113,7 @@ dados e revisar o texto da ficha do app para divulgar preço/assinatura.
 
 ## Dependências para dar por concluído
 
-- Plano e oferta ativos no Play Console;
+- Plano `mensal` e oferta `teste-3-dias` ativos no Play Console (confirmado em 17/11/2026);
 - servidor HTTPS publicado e conta de serviço com autorização;
 - assinatura do AAB no Codespaces;
 - compilação Android validada, compras de teste homologadas;
