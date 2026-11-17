@@ -129,3 +129,25 @@ test('integra SubscriptionPurchaseV2 sem packageName e reconhece compra ativa', 
   assert.equal(response.body.acknowledged, true);
   assert.deepEqual(calls, ['subscriptionsv2.get', 'subscriptions.acknowledge']);
 });
+
+test('limita tentativas excessivas com mesmo token e limpa janela no tempo', () => {
+  const { isRateLimited } = require('../api/verify-subscription');
+  const req = { headers: { 'x-forwarded-for': '192.0.2.41' } };
+  const token = 'sample-token-rate-limit-20261117';
+  for (let i = 0; i < 20; i++) {
+    assert.equal(isRateLimited(req, token, now), false);
+  }
+  assert.equal(isRateLimited(req, token, now), true);
+  assert.equal(isRateLimited(req, token, now + 61_000), false);
+});
+
+test('limite de token é independente de cabeçalho de IP alterado', () => {
+  const { isRateLimited } = require('../api/verify-subscription');
+  const token = 'sample-token-second-defense-20261117';
+  for (let i = 0; i < 20; i++) {
+    assert.equal(isRateLimited({
+      headers: { 'x-forwarded-for': '192.0.2.' + (i + 1) }
+    }, token, now), false);
+  }
+  assert.equal(isRateLimited({ headers: { 'x-forwarded-for': '198.51.100.99' } }, token, now), true);
+});
