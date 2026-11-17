@@ -44,6 +44,30 @@ class WatchdogReceiver : BroadcastReceiver() {
             }.onFailure { Log.w(TAG, "não foi possível agendar", it) }
         }
 
+        /**
+         * Se o prazo local venceu enquanto o telefone estava em segundo plano,
+         * consulta novamente o Google Play antes de desistir de uma renovação.
+         * É um alarme INEXATO e temporário (no máximo 24 h), separado do vigia
+         * de proteção de 10 s. Nunca liga bloqueio sem validação do servidor.
+         */
+        fun scheduleRecovery(ctx: Context) {
+            if (!BillingRenewalSync.mayRecover(ctx)) {
+                cancel(ctx)
+                return
+            }
+            val am = ctx.getSystemService(AlarmManager::class.java) ?: return
+            val expiry = SubscriptionAccess.expiresAt(ctx)
+            val age = System.currentTimeMillis() - expiry
+            val delay = if (age <= 30L * 60_000L) 60_000L else 15L * 60_000L
+            runCatching {
+                am.setAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    System.currentTimeMillis() + delay,
+                    pending(ctx)
+                )
+            }.onFailure { Log.w(TAG, "falha ao reagendar recuperação da assinatura", it) }
+        }
+
         fun cancel(ctx: Context) {
             val am = ctx.getSystemService(AlarmManager::class.java) ?: return
             am.cancel(pending(ctx))
@@ -58,9 +82,16 @@ class WatchdogReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(ctx: Context, intent: Intent?) {
-        // Sempre reagenda: é uma corrente que só para quando a proteção é desligada.
-        if (!Prefs.isEnabled(ctx) || !SubscriptionAccess.isAllowed(ctx)) {
+        // A renovação tem verificações espaçadas: nunca consultar o Google
+        // a cada ciclo do vigia, para não drenar a bateria ou exceder cotas.
+        if (!Prefs.isEnabled(ctx)) {
             cancel(ctx)
+            return
+        }
+        BillingRenewalSync.maybeSync(ctx)
+        if (!SubscriptionAccess.isAllowed(ctx)) {
+            GuardService.stop(ctx)
+            if (BillingRenewalSync.mayRecover(ctx)) scheduleRecovery(ctx) else cancel(ctx)
             return
         }
         schedule(ctx)
