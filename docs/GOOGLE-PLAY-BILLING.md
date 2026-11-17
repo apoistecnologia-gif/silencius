@@ -39,10 +39,10 @@ pelo Billing, e a tela da Google Play confirma as condições antes da contrata�
 - `GOOGLE_PLAY_PACKAGE_NAME`: configurada como `br.com.silencius.app`.
 - `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`: cadastrado no Vercel como **Secret** apenas para Production (confirmado por consulta a metadados, sem ler a chave).
 - Nova implantação de produção da API em 17/11/2026: **READY**, ID `dpl_3UiH8P1Vhu1K4KgUp2zopZXGx7VZ`.
-- **Ainda pendente:** testar autorização com Google Play usando token de licença de teste, revisar proteção de acesso HTTPS e confirmar reconhecimento/estados de assinatura. Nenhuma cobrança foi habilitada no Android.
+- **Atualização de 17/11/2026:** autenticação, validação e reconhecimento da assinatura foram confirmados com uma compra de teste; chamadas de voz/vídeo, cancelamento e expiração também foram testados. A versão pública permanece inalterada; renovações em segundo plano da próxima versão ainda precisam de homologação.
 - Antes de habilitar o Android, restringir abuso de requests/reutilização de token e revisar política de autenticação do endpoint, depois remover proteção de acesso Vercel apenas da rota necessária para o app.
 
-## Servidor de verificação (credencial pendente)
+## Servidor de verificação (credencial Secret configurada)
 
 O arquivo `api/verify-subscription.js` é uma função HTTP Node 20+ preparada
 para Vercel. Não há credenciais nem chaves privadas no Git.
@@ -82,9 +82,9 @@ indefinido com base em simples dados do aparelho.
 - O endpoint diagnóstico temporário `/api/check-play-config` foi **retirado** do deploy e voltou a responder `404`.
 - A API foi endurecida contra corpo excessivo, MIME incorreto, pacote divergente e token malformado.
 - As 13 verificações de lógica executadas no contexto de revisão passaram; o teste Node em Codespaces ainda deve ser repetido após as mudanças.
-- Último deploy de produção do servidor de verificação: `dpl_HjtkRcub2fnoc4pRuHzT1zAep5Gm`, estado `READY`, URL `https://silencius-billing.vercel.app/api/verify-subscription`.
-- A Vercel continua com Deployment Protection ativo. **Não desbloquear indiscriminadamente**: o Android não utiliza login Vercel, mas o endpoint precisará ficar acessível com proteção de abuso/rate limit antes de compradores reais.
-- Não há regra WAF personalizada atualmente, apenas firewall padrão da Vercel; avaliar custo e regras de rate limiting antes de expor publicamente.
+- Deploy de produção do servidor de verificação atualizado com proteção inicial contra abuso: `dpl_De2QnwQZfua2dDBahd9ArGJQDRLF`, estado `READY`, URL `https://silencius-billing.vercel.app/api/verify-subscription`.
+- O endpoint de produção HTTPS foi liberado somente no projeto isolado `silencius-billing`; as URLs de preview permanecem protegidas por Vercel Authentication. O servidor exige token de compra e verifica cada token no Google.
+- Há defesa limitada por instância (20 verificações/min por token e 300/min por IP), sem consumo de serviço WAF pago novo; **não substitui** WAF distribuído, vínculo de token a uma conta nem monitoramento RTDN.
 - Servidor ainda não validou token de compra real. Não declarar integração pronta até testes com testadores de licença, ack, cancelamento, revogação e renovação.
 - O deploy da Vercel é atualmente independente do GitHub; alterações futuras na branch não entram automaticamente no serviço. Não criar GitHub Actions.
 
@@ -125,7 +125,7 @@ Após a contratação de teste do Silêncius Premium, o Android exibiu "Falha ao
 git pull --ff-only origin feat/play-billing-assinatura-20261117 && bash scripts/gerar-aab-homologacao.sh
 ```
 
-- O AAB assinado de desenvolvimento é `SILENCIUS-2.7.4-code101.aab`, desde que `versionCode 101` ainda esteja disponível na Google Play.
+- O AAB de homologação **a gerar** após novas correções é `SILENCIUS-2.7.5-code102.aab` (o código 101 já foi utilizado no Teste interno).
 - **Somente** publicar em **Teste interno**, jamais na produção. O script não envia para loja automaticamente.
 - Em compra com testador de licença, conferir no modal Google Play que aparece pagamento de teste e nenhum débito real. Um teste gratuito configurado como 3 dias poderá durar **cerca de 3 minutos** em homologação devido aos períodos acelerados do Google Play.
 - Fazer teste prático de compra, reconhecimento, renovação, cancelamento e restauração. Não promover a produção antes da conclusão e mitigação da reutilização de token.
@@ -155,7 +155,7 @@ Quando a cobrança estiver habilitada, somente uma assinatura validada permitir�
 a proteção.
 
 O AAB de teste deve manter o mesmo applicationId `br.com.silencius.app` e
-usar versionCode maior que o publicado; versão de desenvolvimento atual: 101 (2.7.4).
+usar versionCode maior que o publicado; versão de desenvolvimento atual: 102 (2.7.5).
 Assinar com a **mesma chave de upload cadastrada na Google Play**, fornecida de
 forma segura no Codespaces, sem versionar a chave e sem imprimir suas senhas.
 
