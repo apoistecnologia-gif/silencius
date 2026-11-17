@@ -74,7 +74,7 @@ class CallNotificationListener : NotificationListenerService() {
         // 3) Não mexer em ligação telefônica em andamento.
         if (isOnPhoneCall()) return
 
-        if (!Prefs.isEnabled(this)) return
+        if (!Prefs.isEnabled(this) || !SubscriptionAccess.isAllowed(this)) return
         if (!Prefs.waBlock(this)) return
 
         val isVideo = text.contains("vídeo", true) || text.contains("video", true)
