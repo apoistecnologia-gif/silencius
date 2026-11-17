@@ -73,6 +73,30 @@ requisições, associação do token a uma identidade/instalação quando aplic�
 monitoramento e tratamento de revogação/RTDN). Não disponibilizar acesso
 indefinido com base em simples dados do aparelho.
 
+## Verificações concluídas em 17/11/2026
+
+- A conta de serviço na Vercel foi consultada apenas por código de servidor, sem exibir a chave.
+- A Vercel obteve um token OAuth válido da conta de serviço.
+- `monetization.subscriptions.get` do Google Play retornou o produto `silencius_premium` e o plano `mensal` em estado `ACTIVE`.
+- O verificador HTTP respondeu `405` para um GET na rota de verificação (comportamento esperado).
+- O endpoint diagnóstico temporário `/api/check-play-config` foi **retirado** do deploy e voltou a responder `404`.
+- A API foi endurecida contra corpo excessivo, MIME incorreto, pacote divergente e token malformado.
+- As 13 verificações de lógica executadas no contexto de revisão passaram; o teste Node em Codespaces ainda deve ser repetido após as mudanças.
+- Último deploy de produção do servidor de verificação: `dpl_HjtkRcub2fnoc4pRuHzT1zAep5Gm`, estado `READY`, URL `https://silencius-billing.vercel.app/api/verify-subscription`.
+- A Vercel continua com Deployment Protection ativo. **Não desbloquear indiscriminadamente**: o Android não utiliza login Vercel, mas o endpoint precisará ficar acessível com proteção de abuso/rate limit antes de compradores reais.
+- Não há regra WAF personalizada atualmente, apenas firewall padrão da Vercel; avaliar custo e regras de rate limiting antes de expor publicamente.
+- Servidor ainda não validou token de compra real. Não declarar integração pronta até testes com testadores de licença, ack, cancelamento, revogação e renovação.
+- O deploy da Vercel é atualmente independente do GitHub; alterações futuras na branch não entram automaticamente no serviço. Não criar GitHub Actions.
+
+### Para testar a integração de verdade (pendente)
+
+1. No Google Play Console, adicionar o Gmail do testador a **Teste de licença**, além do grupo de **Teste interno** do Silêncius.
+2. Preparar teste de proteção do endpoint público (rate limit, associação de token e gestão de revogações) e somente então liberar comunicação do aplicativo.
+3. Gerar AAB de **teste interno** com `SILENCIUS_INTERNAL_BILLING_TEST=1` e endpoint HTTPS revisado; usar código de versão ainda não empregado.
+4. Instalar pelo link de Teste interno da Google Play, contratar com instrumento de teste e verificar o retorno de `purchases.subscriptionsv2.get` e reconhecimento da compra.
+5. Testar 3 dias grátis elegíveis, oferta inelegível, renovação, cancelamento, on-hold e restauração; validar os serviços de bloqueio em aparelho real.
+6. Apenas após homologação completa analisar migração da assinatura para produção. A versão pública continua intocada.
+
 ## Compilação em nuvem pelo GitHub Codespaces
 
 Abrir um Codespace nesta branch, com JDK 21 e Android SDK API 36.
