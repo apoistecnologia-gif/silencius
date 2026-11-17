@@ -9,7 +9,7 @@
  *   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON = JSON da conta de serviço com permissão Play Console
  *   GOOGLE_PLAY_PACKAGE_NAME         = br.com.silencius.app
  */
-const { createSign } = require('node:crypto');
+const { createSign, createHash } = require('node:crypto');
 
 const PRODUCT_ID = 'silencius_premium';
 const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/androidpublisher';
@@ -25,6 +25,43 @@ function diagnosticCode(error) {
   const stage = /^[a-z_]+$/.test(error?.stage || '') ? error.stage : 'unknown';
   const status = Number.isInteger(error?.status) ? String(error.status) : 'error';
   return stage + '_' + status;
+}
+
+// Defesa inicial, sem banco de dados nem dependência externa.
+// Os limites são POR INSTÂNCIA da função serverless; não substituem firewall
+// distribuído, detecção de abuso e vínculo de token a uma conta autenticada.
+const RATE_WINDOW_MS = 60_000;
+const RATE_TOKEN_LIMIT = 20;
+const RATE_IP_LIMIT = 300;
+const rateBuckets = new Map();
+
+function withinRateLimit(key, max, now) {
+  const existing = rateBuckets.get(key);
+  const item = existing && now - existing.at < RATE_WINDOW_MS
+    ? { at: existing.at, count: existing.count + 1 }
+    : { at: now, count: 1 };
+  rateBuckets.set(key, item);
+  if (rateBuckets.size > 10_000) {
+    for (const [id, value] of rateBuckets) {
+      if (now - value.at >= RATE_WINDOW_MS) rateBuckets.delete(id);
+    }
+    // Limita a memória em cenários de ataques com tokens sempre diferentes.
+    while (rateBuckets.size > 10_000) rateBuckets.delete(rateBuckets.keys().next().value);
+  }
+  return item.count <= max;
+}
+
+function isRateLimited(req, purchaseToken, now = Date.now()) {
+  const tokenDigest = createHash('sha256').update(purchaseToken).digest('hex');
+  const tokenAllowed = withinRateLimit('token:' + tokenDigest, RATE_TOKEN_LIMIT, now);
+  // x-forwarded-for é fornecido pela infraestrutura de borda. Mesmo que
+  // seja falseado, o limite separado por token continua sendo aplicado.
+  const forwarded = req.headers?.['x-forwarded-for'];
+  const rawIp = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+  const ip = String(rawIp || req.socket?.remoteAddress || '').split(',')[0].trim();
+  const validIp = /^[0-9a-fA-F:.]{2,64}$/.test(ip) ? ip : '';
+  const ipAllowed = validIp ? withinRateLimit('ip:' + validIp, RATE_IP_LIMIT, now) : true;
+  return !tokenAllowed || !ipAllowed;
 }
 
 function evaluateSubscription(info, now = Date.now()) {
@@ -160,6 +197,14 @@ module.exports = async function handler(req, res) {
       purchaseToken.length > 4096 || /[\u0000-\u001f]/.test(purchaseToken)) {
     return res.status(400).json({ error: 'Token de compra inválido' });
   }
+  if (isRateLimited(req, purchaseToken)) {
+    res.setHeader('Retry-After', '60');
+    return res.status(429).json({
+      active: false,
+      error: 'Muitas solicitações. Tente novamente em alguns instantes.',
+      diagnosticCode: 'rate_limited'
+    });
+  }
   try {
     // Únicos metadados de diagnóstico: evento e estado. Nunca registrar purchaseToken,
     // credenciais Google ou dados do assinante.
@@ -184,3 +229,5 @@ module.exports = async function handler(req, res) {
 };
 
 module.exports.evaluateSubscription = evaluateSubscription;
+
+module.exports.isRateLimited = isRateLimited;
