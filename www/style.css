@@ -213,3 +213,16 @@ input[type=text]:focus{border-color:#2f5a4b;box-shadow:0 0 0 3px rgba(52,211,153
   display:grid;place-items:center;font-weight:800}
 .waAlert span:nth-child(2){flex:1}
 .waAlert button{flex:none;background:var(--accent);color:#fff;border:0;border-radius:999px;padding:9px 16px;font-weight:700;font-size:14px}
+
+/* Google Play Billing — módulo isolado das configurações de bloqueio */
+.premium{border-color:#6e3138;background:linear-gradient(165deg,#2d151b,#141921 75%)}
+.premiumHead{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.premiumTag{font-size:11px;font-weight:800;letter-spacing:1px;color:#ffb1ba}
+.premiumBadge{border:1px solid #75474d;border-radius:999px;padding:3px 9px;color:#f9bdc3;font-size:11px}
+.premium h2{font-size:22px;margin:0}
+.premiumPrice{font-size:17px;font-weight:700;margin:5px 0 8px}
+.premiumInfo,.premiumFine{color:var(--muted);font-size:12px;line-height:1.5;margin:5px 0 12px}
+.premiumFine{font-size:11px;margin:12px 0 0}
+.premiumAction{width:100%;font-size:15px;padding:14px}
+.premiumAction:disabled{cursor:not-allowed;background:#4d3840;color:#ddd1d3;opacity:.8}
+.premiumRestore{display:block;margin:12px auto 0;padding:6px;color:#ffc1c7}
