@@ -58,7 +58,7 @@ class CallAccessibilityService : AccessibilityService() {
         val ev = event ?: return
         val pkg = ev.packageName?.toString() ?: return
         if (pkg !in PACKAGES) return
-        if (!Prefs.isEnabled(this)) return
+        if (!Prefs.isEnabled(this) || !SubscriptionAccess.isAllowed(this)) return
         if (!Prefs.waBlock(this)) return
 
         // Não mexer em ligação telefônica do sistema.
