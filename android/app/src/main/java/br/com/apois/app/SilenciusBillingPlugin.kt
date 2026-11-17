@@ -176,8 +176,10 @@ class SilenciusBillingPlugin : Plugin() {
                 val purchased = owned.firstOrNull()
                 if (purchased == null) {
                     SubscriptionAccess.updateVerified(context, false, 0L)
-                    GuardService.stop(context)
-                    WatchdogReceiver.cancel(context)
+                    if (BuildConfig.BILLING_ENFORCEMENT_ENABLED) {
+                        GuardService.stop(context)
+                        WatchdogReceiver.cancel(context)
+                    }
                     call.resolve(JSObject().apply {
                         put("found", false)
                         put("verified", true)
@@ -261,10 +263,10 @@ class SilenciusBillingPlugin : Plugin() {
                     val expiryMs = runCatching { Instant.parse(expires).toEpochMilli() }.getOrDefault(0L)
                     val active = result.optBoolean("active", false) && expiryMs > System.currentTimeMillis()
                     SubscriptionAccess.updateVerified(context, active, expiryMs)
-                    if (!active) {
+                    if (!active && BuildConfig.BILLING_ENFORCEMENT_ENABLED) {
                         GuardService.stop(context)
                         WatchdogReceiver.cancel(context)
-                    } else if (Prefs.isEnabled(context)) {
+                    } else if (active && Prefs.isEnabled(context)) {
                         GuardService.start(context)
                         WatchdogReceiver.schedule(context)
                     }
