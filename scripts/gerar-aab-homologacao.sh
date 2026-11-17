@@ -27,7 +27,9 @@ fi
 
 command -v node >/dev/null || { echo "Node.js não encontrado."; exit 2; }
 command -v curl >/dev/null || { echo "curl não encontrado."; exit 2; }
-echo "1/4 — Executando testes da verificação Google Play..."
+echo "1/4 — Verificando sintaxe JavaScript e testes de verificação Google Play..."
+node --check api/verify-subscription.js
+node --check www/app.js
 node --test tests/billing-verification.test.js
 
 echo "2/4 — Verificando acesso público da API, sem enviar dados de compra..."
