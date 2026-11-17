@@ -5,11 +5,9 @@ import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.PendingPurchasesParams
-import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
 import com.android.billingclient.api.Purchase
-import android.net.Uri
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.Instant
@@ -97,6 +95,11 @@ class SilenciusBillingPlugin : Plugin() {
             }
             override fun onBillingServiceDisconnected() {
                 connecting = false
+                val queued = pendingActions.toList()
+                pendingActions.clear()
+                queued.forEach { (pendingCall, _) ->
+                    pendingCall.reject("Conexão com o Google Play interrompida")
+                }
             }
         })
     }
@@ -148,7 +151,7 @@ class SilenciusBillingPlugin : Plugin() {
                 }
                 call.resolve(JSObject().apply {
                     put("offers", offers)
-                    put("purchaseEnabled", PURCHASE_FLOW_ENABLED)
+                    put("purchaseEnabled", purchasesEnabled())
                     put("productAvailable", products.productDetailsList.any { it.productId == PRODUCT_ID })
                 })
             }
