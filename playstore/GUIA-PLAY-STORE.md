@@ -136,8 +136,8 @@ Uso da Acessibilidade: o Silêncius usa o serviço de Acessibilidade apenas para
 Cole o link onde publicar o `politica-de-privacidade.html`. Pode ser no site da APOIS, no GitHub Pages ou no Google Sites.
 
 ### Segurança dos dados
-- O app coleta ou compartilha dados? **Não.** Tudo é processado no aparelho e nada é enviado.
-- Os dados são criptografados em trânsito? Não se aplica.
+- **Atenção à versão Premium:** revisar novamente a declaração de Segurança dos dados antes de publicar a atualização com Billing. O token técnico de compra será enviado ao servidor de verificação e ao Google Play; chamadas, contatos e notificações continuam locais.
+- Dados de assinatura trafegam por HTTPS. Não reutilize as respostas antigas sem revisar o novo fluxo.
 - Pode solicitar exclusão? Os dados ficam só no aparelho e são apagados ao desinstalar.
 
 ### Declaração da API de Acessibilidade (obrigatória)
