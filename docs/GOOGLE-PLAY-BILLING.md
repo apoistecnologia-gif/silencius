@@ -37,8 +37,9 @@ pelo Billing, e a tela da Google Play confirma as condições antes da contrata�
 - Código de origem: `api/verify-subscription.js` desta branch.
 - Primeiro build da Vercel: **READY**, porém proteção Vercel Authentication ainda ativa.
 - `GOOGLE_PLAY_PACKAGE_NAME`: configurada como `br.com.silencius.app`.
-- `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`: **pendente**, incluir APENAS como segredo privado no painel Vercel.
-- Sem credenciais Google, o verificador não confirma compras; nenhuma cobrança foi habilitada no Android.
+- `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`: cadastrado no Vercel como **Secret** apenas para Production (confirmado por consulta a metadados, sem ler a chave).
+- Nova implantação de produção da API em 17/11/2026: **READY**, ID `dpl_3UiH8P1Vhu1K4KgUp2zopZXGx7VZ`.
+- **Ainda pendente:** testar autorização com Google Play usando token de licença de teste, revisar proteção de acesso HTTPS e confirmar reconhecimento/estados de assinatura. Nenhuma cobrança foi habilitada no Android.
 - Antes de habilitar o Android, restringir abuso de requests/reutilização de token e revisar política de autenticação do endpoint, depois remover proteção de acesso Vercel apenas da rota necessária para o app.
 
 ## Servidor de verificação (credencial pendente)
