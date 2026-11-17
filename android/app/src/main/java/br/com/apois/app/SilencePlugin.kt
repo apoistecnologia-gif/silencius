@@ -31,7 +31,7 @@ class SilencePlugin : Plugin() {
     fun getState(call: PluginCall) {
         val ctx = context
         val ret = JSObject()
-        ret.put("enabled", Prefs.isEnabled(ctx))
+        ret.put("enabled", Prefs.isEnabled(ctx) && SubscriptionAccess.isAllowed(ctx))
         ret.put("mode", Prefs.mode(ctx))
         ret.put("blockVoice", Prefs.blockVoice(ctx))
         ret.put("blockVideo", Prefs.blockVideo(ctx))
@@ -52,6 +52,8 @@ class SilencePlugin : Plugin() {
         perms.put("restricted", isRestricted(ctx))
         ret.put("permissions", perms)
         ret.put("onboarded", Prefs.get(ctx).getBoolean("onboarded", false))
+        ret.put("premiumActive", SubscriptionAccess.isAllowed(ctx))
+        ret.put("premiumExpiryMs", SubscriptionAccess.expiresAt(ctx))
 
         call.resolve(ret)
     }
@@ -63,6 +65,10 @@ class SilencePlugin : Plugin() {
             return
         }
         val ctx = context
+        if (s.optBoolean("enabled", false) && s.has("enabled") && !SubscriptionAccess.isAllowed(ctx)) {
+            call.reject("Assinatura Silêncius Premium necessária para ativar a proteção")
+            return
+        }
         val editor = Prefs.get(ctx).edit()
 
         if (s.has("enabled")) editor.putBoolean(Prefs.KEY_ENABLED, s.optBoolean("enabled", false))
