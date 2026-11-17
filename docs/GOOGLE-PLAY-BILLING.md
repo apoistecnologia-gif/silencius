@@ -97,6 +97,20 @@ indefinido com base em simples dados do aparelho.
 5. Testar 3 dias grátis elegíveis, oferta inelegível, renovação, cancelamento, on-hold e restauração; validar os serviços de bloqueio em aparelho real.
 6. Apenas após homologação completa analisar migração da assinatura para produção. A versão pública continua intocada.
 
+## Correção de reconhecimento da compra — 17/11/2026 (homologação 101)
+
+Após a contratação de teste do Silêncius Premium, o Android exibiu "Falha ao consultar a assinatura" e o Google Play informou que o desenvolvedor não reconheceu a compra.
+
+**Causa identificada no código:** o backend rejeitava indiscriminadamente respostas de `purchases.subscriptionsv2.get` por testar `sub.packageName !== packageName`. O recurso oficial `SubscriptionPurchaseV2` **não inclui** um campo `packageName` na resposta; portanto a comparação era sempre falsa e impedia `purchases.subscriptions.acknowledge`. A consulta v2 já é feita no caminho `/applications/br.com.silencius.app/...`, que vincula o token ao aplicativo. Também é validado o `productId` da linha da assinatura.
+
+- Falha corrigida em `api/verify-subscription.js` e implantada no projeto isolado `silencius-billing`.
+- Implantação Vercel `dpl_3SNXDw6hKryQNqon47s7Zh965UMQ` em estado `READY`; GET à API retorna 405 esperado (aceita POST).
+- Teste simulado sem segredos, com resposta v2 sem `packageName`: resultado HTTP 200, `active=true`, `acknowledged=true` e requisição de reconhecimento executada.
+- Foram adicionados códigos de diagnóstico seguros ao backend e Android; no código de desenvolvimento a próxima versão é **2.7.5 (102)**; código 101 já publicado no teste interno.
+- A versão **101 instalada pode consultar o backend corrigido sem novo AAB**, pois o erro principal estava no servidor. Se a compra de teste tiver sido cancelada automaticamente após três minutos sem reconhecimento, será necessário outro teste; nunca utilizar cartão real.
+- O teste simulado não comprova autenticação de uma nova compra real. Após teste no aparelho, verificar registros da Vercel sem tokens e confirmar status do Google Play.
+- **Não enviar à produção** até testar renovação, cancelamento, restauração, avisos e proteções da API.
+
 ## Preparação da homologação com testador de licença (17/11/2026)
 
 - O usuário confirmou que o Gmail foi adicionado à lista **Silêncius — Testadores de Licença** e também ao grupo de **Teste interno** na Play Console.
