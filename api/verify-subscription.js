@@ -157,7 +157,13 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'Token de compra inválido' });
   }
   try {
+    // Únicos metadados de diagnóstico: evento e estado. Nunca registrar purchaseToken,
+    // credenciais Google ou dados do assinante.
+    console.info('[SilenciusBilling] verification_received');
     const state = await verifyPurchase(purchaseToken);
+    console.info('[SilenciusBilling] verification_result',
+      state.active ? 'active' : 'inactive',
+      state.acknowledged ? 'acknowledged' : 'not_acknowledged');
     return res.status(200).json(state);
   } catch (error) {
     // Diagnóstico restrito ao estágio e ao status HTTP. NÃO imprimir token, corpo, URL, credenciais ou dados do comprador.
