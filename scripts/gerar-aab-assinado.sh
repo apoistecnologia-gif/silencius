@@ -42,22 +42,49 @@ if [[ ! -f "$stored" ]]; then
 fi
 export APOIS_KEYSTORE="$stored"
 
-alias_name=""
-read -r -p "Alias da chave [apois]: " alias_name </dev/tty
-export APOIS_KEY_ALIAS="${alias_name:-apois}"
-
 pass=""
 read -r -s -p "Senha do arquivo apois-release.jks: " pass </dev/tty
 printf '\n'
 [[ -n "$pass" ]] || { echo "Senha obrigatória; AAB não gerado."; exit 1; }
 export APOIS_STORE_PASS="$pass"
+unset pass
+trap 'unset APOIS_KEYSTORE APOIS_STORE_PASS APOIS_KEY_ALIAS APOIS_KEY_PASS' EXIT
+
+# Conferir primeiro a senha e descobrir os aliases reais sem expor a senha no comando.
+# Apenas entradas PrivateKeyEntry podem assinar o AAB.
+alias_output=""
+if ! alias_output=$(LC_ALL=C "$JAVA_HOME/bin/keytool" -list -v \
+  -keystore "$stored" -storepass:env APOIS_STORE_PASS -J-Duser.language=en 2>&1); then
+  echo "Não foi possível abrir o JKS. Confira a senha e o arquivo original."
+  exit 1
+fi
+mapfile -t key_aliases < <(printf '%s\n' "$alias_output" | awk '
+  /^Alias name: / { name = substr($0, 13) }
+  /^Entry type: PrivateKeyEntry/ { if (name != "") print name }
+')
+unset alias_output
+if (( ${#key_aliases[@]} == 0 )); then
+  echo "Nenhuma entrada PrivateKeyEntry encontrada neste JKS. Não é possível assinar."
+  exit 1
+elif (( ${#key_aliases[@]} == 1 )); then
+  export APOIS_KEY_ALIAS="${key_aliases[0]}"
+  echo "Alias de assinatura detectado automaticamente: $APOIS_KEY_ALIAS"
+else
+  echo "Aliases de assinatura encontrados:"
+  printf ' - %s\n' "${key_aliases[@]}"
+  read -r -p "Digite um dos aliases acima: " APOIS_KEY_ALIAS </dev/tty
+  if [[ ! " ${key_aliases[*]} " =~ [[:space:]]${APOIS_KEY_ALIAS}[[:space:]] ]]; then
+    echo "Alias não encontrado neste JKS. Compilação não iniciada."
+    exit 1
+  fi
+  export APOIS_KEY_ALIAS
+fi
 
 keypass=""
-read -r -s -p "Senha da chave (Enter se igual à senha acima): " keypass </dev/tty
+read -r -s -p "Senha da chave (Enter se igual à senha do arquivo): " keypass </dev/tty
 printf '\n'
-export APOIS_KEY_PASS="${keypass:-$pass}"
-unset pass keypass
-trap 'unset APOIS_KEYSTORE APOIS_STORE_PASS APOIS_KEY_ALIAS APOIS_KEY_PASS' EXIT
+export APOIS_KEY_PASS="${keypass:-$APOIS_STORE_PASS}"
+unset keypass
 
 LOG_DIR="$HOME/silencius-build-logs"
 mkdir -p "$LOG_DIR"
