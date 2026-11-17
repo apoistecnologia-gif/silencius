@@ -29,7 +29,19 @@ O período gratuito é contratado e controlado pela própria Google Play, com m�
 de pagamento e renovação informados ao usuário. O preço final é sempre consultado
 pelo Billing, e a tela da Google Play confirma as condições antes da contratação.
 
-## Servidor de verificação (pendente de implantação)
+## Servidor de verificação — infraestrutura criada na Vercel
+
+- Projeto exclusivo: `silencius-billing`, equipe `mariajuvelina403-7231s-projects`.
+- Projeto Vercel ID: `prj_qqFLRezQaFSDb7FqelwUO6PVTMlA`.
+- Endereço reservado: `https://silencius-billing.vercel.app/api/verify-subscription`.
+- Código de origem: `api/verify-subscription.js` desta branch.
+- Primeiro build da Vercel: **READY**, porém proteção Vercel Authentication ainda ativa.
+- `GOOGLE_PLAY_PACKAGE_NAME`: configurada como `br.com.silencius.app`.
+- `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`: **pendente**, incluir APENAS como segredo privado no painel Vercel.
+- Sem credenciais Google, o verificador não confirma compras; nenhuma cobrança foi habilitada no Android.
+- Antes de habilitar o Android, restringir abuso de requests/reutilização de token e revisar política de autenticação do endpoint, depois remover proteção de acesso Vercel apenas da rota necessária para o app.
+
+## Servidor de verificação (credencial pendente)
 
 O arquivo `api/verify-subscription.js` é uma função HTTP Node 20+ preparada
 para Vercel. Não há credenciais nem chaves privadas no Git.
