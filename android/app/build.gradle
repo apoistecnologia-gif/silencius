@@ -15,6 +15,15 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Endereço da API de verificação: injetado no build (GitHub Codespaces Secret / variável).
+    // Nunca coloque chave de serviço ou token Google dentro do APK.
+    buildFeatures { buildConfig true }
+    defaultConfig {
+        buildConfigField "String", "BILLING_VERIFY_URL",
+            "\\\"${System.getenv('SILENCIUS_BILLING_VERIFY_URL') ?: ''}\\\""
+        buildConfigField "boolean", "BILLING_ENFORCEMENT_ENABLED",
+            "${System.getenv('SILENCIUS_ENFORCE_BILLING') == 'true'}"
+    }
     // Senhas da chave ficam em android/keystore.properties (fora do Git) ou em variáveis de ambiente.
     def ksProps = new Properties()
     def ksFile = rootProject.file("keystore.properties")
