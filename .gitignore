@@ -5,3 +5,6 @@ node_modules/
 *.jks
 *.keystore
 keystore.properties
+
+# Pacote de recursos visuais transferido temporariamente ao Codespaces
+SILENCIUS-ICONES-ANDROID-PLAY.zip
