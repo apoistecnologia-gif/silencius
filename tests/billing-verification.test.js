@@ -62,3 +62,70 @@ test('nega GET e corpo malformado sem consultar o Google', async () => {
     body: { purchaseToken: 'curto' }
   }, 400);
 });
+
+test('integra SubscriptionPurchaseV2 sem packageName e reconhece compra ativa', async () => {
+  // A resposta real de subscriptionsv2.get NÃO contém packageName.
+  // Simula OAuth/Google Play sem qualquer compra, credencial ou rede reais.
+  const fs = require('node:fs');
+  const vm = require('node:vm');
+  const { generateKeyPairSync } = require('node:crypto');
+  const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const verificationSource = fs.readFileSync(
+    require.resolve('../api/verify-subscription'), 'utf8'
+  );
+  const calls = [];
+  const serviceAccount = {
+    type: 'service_account',
+    client_email: 'test@example.iam.gserviceaccount.com',
+    private_key: privateKey.export({ type: 'pkcs8', format: 'pem' })
+  };
+  const fakeFetch = async (url, options) => {
+    const address = String(url);
+    if (address === 'https://oauth2.googleapis.com/token') {
+      return { ok: true, status: 200, json: async () => ({ access_token: 'mock-google-token' }) };
+    }
+    if (address.includes('/subscriptionsv2/tokens/')) {
+      calls.push('subscriptionsv2.get');
+      const data = {
+        subscriptionState: 'SUBSCRIPTION_STATE_ACTIVE',
+        acknowledgementState: 'ACKNOWLEDGEMENT_STATE_PENDING',
+        lineItems: [{
+          productId: 'silencius_premium',
+          expiryTime: new Date(Date.now() + 60_000).toISOString()
+        }]
+        // Sem campo packageName: corresponde à especificação oficial do Google.
+      };
+      return { ok: true, status: 200, text: async () => JSON.stringify(data) };
+    }
+    if (address.endsWith(':acknowledge') && options?.method === 'POST') {
+      calls.push('subscriptions.acknowledge');
+      return { ok: true, status: 204 };
+    }
+    throw new Error('Endpoint inesperado no teste');
+  };
+  const harness = {
+    module: { exports: {} },
+    require,
+    process: { env: {
+      GOOGLE_PLAY_PACKAGE_NAME: 'br.com.silencius.app',
+      GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: JSON.stringify(serviceAccount)
+    } },
+    fetch: fakeFetch,
+    Buffer,
+    Date,
+    URLSearchParams,
+    AbortSignal,
+    console: { info() {}, warn() {} }
+  };
+  vm.runInNewContext(verificationSource, harness, { filename: 'verify-subscription.js' });
+  const response = mockResponse();
+  await harness.module.exports({
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: { purchaseToken: 'fake-purchase-token-for-unit-test' }
+  }, response);
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.active, true);
+  assert.equal(response.body.acknowledged, true);
+  assert.deepEqual(calls, ['subscriptionsv2.get', 'subscriptions.acknowledge']);
+});
