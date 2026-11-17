@@ -54,6 +54,29 @@ async function loadBilling() {
   }
 }
 
+function showVerifiedPremium(result) {
+  const status = document.querySelector("#billingStatus");
+  const info = document.querySelector("#billingText");
+  if (result && result.verified && result.active) {
+    status.textContent = "Assinatura ativa";
+    const expiry = result.expiryTime ? new Date(result.expiryTime).toLocaleDateString("pt-BR") : "";
+    info.textContent = "Premium ativo" + (expiry ? " até " + expiry : "") +
+      ". Gerencie sua renovação e cancelamento pelo Google Play.";
+  } else if (result && result.verified && !result.active) {
+    status.textContent = "Assinatura não ativa";
+    info.textContent = "Não encontramos uma assinatura ativa nesta conta Google Play.";
+  }
+}
+
+if (Billing && isNative && Billing.addListener) {
+  Billing.addListener("subscriptionVerified", ({ active, verified, expiryTime }) => {
+    showVerifiedPremium({ active, verified, expiryTime });
+  });
+  Billing.addListener("purchaseUpdated", ({ hasPurchased }) => {
+    if (hasPurchased) toast("Compra recebida. Confirmando assinatura com a Google Play.");
+  });
+}
+
 document.querySelector("#billingStart").addEventListener("click", async () => {
   if (!billingReadyToPurchase || !Billing) return;
   try { await Billing.purchase(); } catch (e) { toast("Não foi possível iniciar a assinatura"); }
@@ -62,7 +85,9 @@ document.querySelector("#billingRestore").addEventListener("click", async () => 
   if (!Billing || !isNative) return toast("Apenas no aplicativo instalado");
   try {
     const result = await Billing.restorePurchases();
-    toast(result.found ? "Compra encontrada; aguardando validação segura." : "Nenhuma assinatura encontrada nesta conta.");
+    showVerifiedPremium(result);
+    toast(result.active ? "Assinatura confirmada pelo Google Play." :
+      result.found ? "Compra recebida; validação pendente." : "Nenhuma assinatura ativa encontrada.");
   } catch (e) { toast("Falha ao consultar a assinatura"); }
 });
 
