@@ -5,6 +5,67 @@
 
 const Native = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Silence) || null;
 const isNative = !!(Native && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const Billing = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SilenciusBilling) || null;
+let billingReadyToPurchase = false;
+
+/* Esta tela não altera Prefs, nem liga/desliga serviços. Só informa planos reais do Play. */
+async function loadBilling() {
+  const button = document.querySelector("#billingStart");
+  const info = document.querySelector("#billingText");
+  const price = document.querySelector("#billingPrice");
+  const status = document.querySelector("#billingStatus");
+  button.disabled = true;
+  billingReadyToPurchase = false;
+  if (!Billing || !isNative) {
+    status.textContent = "Demonstração";
+    info.textContent = "Assinaturas disponíveis apenas no aplicativo instalado pela Google Play.";
+    return;
+  }
+  try {
+    const config = await Billing.getConfig();
+    let product = null;
+    try { product = await Billing.getOffers(); } catch (_) {}
+    const options = (product && product.offers) || [];
+    const trial = options.find(o => o.eligible && o.hasThreeDayTrial && o.period === "P1M");
+    const normal = options.find(o => o.eligible && o.period === "P1M");
+    const selected = trial || normal;
+    if (selected && selected.formattedPrice) {
+      price.textContent = (trial ? "Depois, " : "") + selected.formattedPrice + " por mês";
+    }
+    if (!trial) {
+      document.querySelector("#billingTitle").textContent = "Silêncius Premium";
+    }
+    if (config.purchaseEnabled && selected) {
+      status.textContent = trial ? "Teste disponível" : "Assinatura mensal";
+      info.textContent = trial
+        ? "3 dias grátis para esta conta; depois, renovação automática no valor informado. Cancele pelo Google Play."
+        : "Esta conta não tem oferta de teste disponível. O Google Play exibirá o preço e as condições antes de confirmar.";
+      button.textContent = trial ? "Ativar 3 dias grátis" : "Assinar pelo Google Play";
+      button.disabled = false;
+      billingReadyToPurchase = true;
+    } else {
+      status.textContent = "Em preparação";
+      info.textContent = "O plano está sendo configurado. Não há cobranças habilitadas nesta versão de teste.";
+      button.textContent = "Assinaturas em preparação";
+    }
+  } catch (e) {
+    status.textContent = "Indisponível";
+    info.textContent = "Não foi possível consultar as ofertas do Google Play agora.";
+  }
+}
+
+document.querySelector("#billingStart").addEventListener("click", async () => {
+  if (!billingReadyToPurchase || !Billing) return;
+  try { await Billing.purchase(); } catch (e) { toast("Não foi possível iniciar a assinatura"); }
+});
+document.querySelector("#billingRestore").addEventListener("click", async () => {
+  if (!Billing || !isNative) return toast("Apenas no aplicativo instalado");
+  try {
+    const result = await Billing.restorePurchases();
+    toast(result.found ? "Compra encontrada; aguardando validação segura." : "Nenhuma assinatura encontrada nesta conta.");
+  } catch (e) { toast("Falha ao consultar a assinatura"); }
+});
+
 
 const $ = (s) => document.querySelector(s);
 
@@ -480,5 +541,6 @@ try {
 // enquanto o assistente estiver aberto, confere a cada 1,5 s (janelas do sistema não pausam o app)
 setInterval(() => { if (wz.open && !document.hidden) load(); }, 1500);
 
+loadBilling();
 load();
 setInterval(() => { if (!document.hidden) load(); }, 20000);
