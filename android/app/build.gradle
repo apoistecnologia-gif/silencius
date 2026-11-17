@@ -20,7 +20,7 @@ android {
     buildFeatures { buildConfig true }
     defaultConfig {
         buildConfigField "String", "BILLING_VERIFY_URL",
-            "\\\"${System.getenv('SILENCIUS_BILLING_VERIFY_URL') ?: ''}\\\""
+            "\"${System.getenv('SILENCIUS_BILLING_VERIFY_URL') ?: ''}\""
         buildConfigField "boolean", "BILLING_ENFORCEMENT_ENABLED",
             "${System.getenv('SILENCIUS_ENFORCE_BILLING') == 'true'}"
     }
