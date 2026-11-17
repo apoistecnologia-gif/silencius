@@ -97,6 +97,25 @@ indefinido com base em simples dados do aparelho.
 5. Testar 3 dias grátis elegíveis, oferta inelegível, renovação, cancelamento, on-hold e restauração; validar os serviços de bloqueio em aparelho real.
 6. Apenas após homologação completa analisar migração da assinatura para produção. A versão pública continua intocada.
 
+## Preparação da homologação com testador de licença (17/11/2026)
+
+- O usuário confirmou que o Gmail foi adicionado à lista **Silêncius — Testadores de Licença** e também ao grupo de **Teste interno** na Play Console.
+- O projeto dedicado `silencius-billing` está **READY** na Vercel, com `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` do tipo **Secret**.
+- Foi alterada a proteção do projeto Vercel **somente para esta API**, de `all_except_custom_domains` para `preview`: o endpoint HTTPS de produção pode receber requisições do aplicativo Android; os previews permanecem protegidos por Vercel Authentication.
+- Apenas o firewall padrão está ativo; **não habilitar produção do aplicativo** antes de implementar rate limiting apropriado, associar token de compra à identidade e monitorar abusos e revogações.
+- A conta de serviço já consultou o catálogo Google Play com êxito, mas **nenhuma compra real foi validada**.
+- O script `scripts/gerar-aab-homologacao.sh` valida os testes Node, confirma resposta pública da API sem passar dados de compra, sincroniza `www` com Android e gera o AAB assinado. Ao falhar a checagem HTTPS, não gera AAB.
+- Com o Codespaces na branch `feat/play-billing-assinatura-20261117`, executar **um único comando**:
+
+```bash
+git pull --ff-only origin feat/play-billing-assinatura-20261117 && bash scripts/gerar-aab-homologacao.sh
+```
+
+- O AAB assinado de desenvolvimento é `SILENCIUS-2.7.4-code101.aab`, desde que `versionCode 101` ainda esteja disponível na Google Play.
+- **Somente** publicar em **Teste interno**, jamais na produção. O script não envia para loja automaticamente.
+- Em compra com testador de licença, conferir no modal Google Play que aparece pagamento de teste e nenhum débito real. Um teste gratuito configurado como 3 dias poderá durar **cerca de 3 minutos** em homologação devido aos períodos acelerados do Google Play.
+- Fazer teste prático de compra, reconhecimento, renovação, cancelamento e restauração. Não promover a produção antes da conclusão e mitigação da reutilização de token.
+
 ## Compilação em nuvem pelo GitHub Codespaces
 
 Abrir um Codespace nesta branch, com JDK 21 e Android SDK API 36.
