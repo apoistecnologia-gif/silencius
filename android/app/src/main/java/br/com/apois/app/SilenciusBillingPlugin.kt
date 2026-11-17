@@ -10,6 +10,7 @@ import com.android.billingclient.api.QueryPurchasesParams
 import com.android.billingclient.api.Purchase
 import java.net.HttpURLConnection
 import java.net.URL
+import android.util.Log
 import java.time.Instant
 import java.util.concurrent.Executors
 import org.json.JSONObject
@@ -260,7 +261,15 @@ class SilenciusBillingPlugin : Plugin() {
                     val body = JSONObject().put("purchaseToken", purchase.purchaseToken).toString()
                     conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
                     val code = conn.responseCode
-                    if (code != 200) throw IllegalStateException("Falha HTTP ${code}")
+                    if (code != 200) {
+                        val safeCode = runCatching {
+                            conn.errorStream?.bufferedReader()?.use { reader ->
+                                JSONObject(reader.readText()).optString("diagnosticCode", "")
+                            }
+                        }.getOrNull().orEmpty().take(48)
+                        val category = if (safeCode.matches(Regex("[a-z0-9_]+"))) safeCode else "backend"
+                        throw IllegalStateException("HTTP_${code}_${category}")
+                    }
                     val result = conn.inputStream.bufferedReader().use { JSONObject(it.readText()) }
                     val expires = result.optString("expiryTime", "")
                     val expiryMs = runCatching { Instant.parse(expires).toEpochMilli() }.getOrDefault(0L)
@@ -287,11 +296,21 @@ class SilenciusBillingPlugin : Plugin() {
                     conn.disconnect()
                 }
             } catch (error: Exception) {
+                // Somente a classe da falha: nunca registrar token, URL com credenciais nem conteúdo da compra.
+                val category = when (error) {
+                    is java.net.SocketTimeoutException -> "TIMEOUT"
+                    is java.net.UnknownHostException -> "SEM_DNS"
+                    is javax.net.ssl.SSLException -> "FALHA_TLS"
+                    else -> error.message?.takeIf { it.matches(Regex("HTTP_[0-9]{3}_[a-z0-9_]+")) }
+                        ?: "VERIFICACAO_INDISPONIVEL"
+                }
+                Log.w("SilenciusBilling", "Falha de verificação: ${category}")
                 activity.runOnUiThread {
                     notifyListeners("subscriptionVerificationFailed", JSObject().apply {
                         put("message", "Não foi possível verificar a assinatura agora")
+                        put("diagnosticCode", category)
                     })
-                    call?.reject("Não foi possível verificar a assinatura agora")
+                    call?.reject("Falha ao verificar assinatura (${category})")
                 }
             }
         }
