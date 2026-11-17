@@ -59,7 +59,7 @@ class WatchdogReceiver : BroadcastReceiver() {
 
     override fun onReceive(ctx: Context, intent: Intent?) {
         // Sempre reagenda: é uma corrente que só para quando a proteção é desligada.
-        if (!Prefs.isEnabled(ctx)) {
+        if (!Prefs.isEnabled(ctx) || !SubscriptionAccess.isAllowed(ctx)) {
             cancel(ctx)
             return
         }
