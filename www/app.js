@@ -8,6 +8,20 @@ const isNative = !!(Native && window.Capacitor.isNativePlatform && window.Capaci
 const Billing = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SilenciusBilling) || null;
 let billingReadyToPurchase = false;
 let lastBillingSync = 0;
+let premiumVerifiedActive = null;
+
+function refreshPremiumPurchaseButton() {
+  const button = document.querySelector("#billingStart");
+  if (!button) return;
+  if (premiumVerifiedActive === true) {
+    billingReadyToPurchase = false;
+    button.disabled = true;
+    button.textContent = "Assinatura já ativa";
+    document.querySelector("#billingFine").textContent =
+      "Sua assinatura está ativa. Gerencie a renovação ou o cancelamento na Google Play.";
+  }
+}
+
 
 async function syncPremiumOnResume() {
   if (!Billing || !isNative || Date.now() - lastBillingSync < 60000) return;
@@ -64,6 +78,7 @@ async function loadBilling() {
       button.textContent = trial ? "Ativar 3 dias grátis" : "Assinar pelo Google Play";
       button.disabled = false;
       billingReadyToPurchase = true;
+      refreshPremiumPurchaseButton();
       await syncPremiumOnResume();
     } else {
       status.textContent = "Em preparação";
@@ -80,13 +95,20 @@ function showVerifiedPremium(result) {
   const status = document.querySelector("#billingStatus");
   const info = document.querySelector("#billingText");
   if (result && result.verified && result.active) {
+    premiumVerifiedActive = true;
     status.textContent = "Assinatura ativa";
-    const expiry = result.expiryTime ? new Date(result.expiryTime).toLocaleDateString("pt-BR") : "";
+    const exp = result.expiryTime ? new Date(result.expiryTime) : null;
+    const expiry = exp && Number.isFinite(exp.getTime())
+      ? exp.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "";
     info.textContent = "Premium ativo" + (expiry ? " até " + expiry : "") +
       ". Gerencie sua renovação e cancelamento pelo Google Play.";
+    refreshPremiumPurchaseButton();
   } else if (result && result.verified && !result.active) {
+    premiumVerifiedActive = false;
     status.textContent = "Assinatura não ativa";
     info.textContent = "Não encontramos uma assinatura ativa nesta conta Google Play.";
+    // A oferta será recalculada pela Google Play ao carregar as opções.
+    loadBilling();
   }
 }
 
@@ -96,7 +118,12 @@ if (Billing && isNative && Billing.addListener) {
     load();
   });
   Billing.addListener("purchaseUpdated", ({ hasPurchased }) => {
-    if (hasPurchased) toast("Compra recebida. Confirmando assinatura com a Google Play.");
+    if (hasPurchased) {
+      billingReadyToPurchase = false;
+      document.querySelector("#billingStart").disabled = true;
+      document.querySelector("#billingStart").textContent = "Confirmando assinatura...";
+      toast("Compra recebida. Confirmando assinatura com a Google Play.");
+    }
   });
   Billing.addListener("subscriptionVerificationFailed", ({ diagnosticCode }) => {
     const code = typeof diagnosticCode === "string" && /^[A-Za-z0-9_]{3,70}$/.test(diagnosticCode)
@@ -104,6 +131,9 @@ if (Billing && isNative && Billing.addListener) {
     const status = document.querySelector("#billingStatus");
     const info = document.querySelector("#billingText");
     status.textContent = "Verificação pendente";
+    billingReadyToPurchase = false;
+    document.querySelector("#billingStart").disabled = true;
+    document.querySelector("#billingStart").textContent = "Verificação pendente";
     info.textContent = "Google Play ainda não confirmou esta assinatura. Código de suporte: " + code +
       ". Não tente contratar novamente antes de resolver a verificação.";
   });
