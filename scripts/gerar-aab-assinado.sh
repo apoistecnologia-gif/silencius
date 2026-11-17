@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Assina o Silêncius 2.7.1 no Codespaces, sem GitHub Actions.
+# Assina o Silêncius no Codespaces, sem GitHub Actions.
 # Chave e senhas ficam fora do Git; as senhas não aparecem no terminal nem nos logs.
 set -Eeuo pipefail
 umask 077
@@ -10,11 +10,22 @@ export JAVA_HOME="/usr/local/sdkman/candidates/java/21.0.13.0+2-ms"
 export ANDROID_HOME="$HOME/android-sdk"
 export ANDROID_SDK_ROOT="$ANDROID_HOME"
 export PATH="$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
-export SILENCIUS_ENFORCE_BILLING=false
-export SILENCIUS_BILLING_VERIFY_URL=""
-
-echo "Silêncius — gerar AAB assinado para TESTE INTERNO."
-echo "A cobrança continuará DESATIVADA até a homologação."
+# Por padrão, a assinatura é desativada. Somente um pedido explícito de
+# homologação, com servidor HTTPS validado, habilita o fluxo neste AAB de teste.
+if [[ "${SILENCIUS_INTERNAL_BILLING_TEST:-0}" == "1" ]]; then
+  if [[ ! "${SILENCIUS_BILLING_VERIFY_URL:-}" =~ ^https://[^[:space:]]+/api/verify-subscription$ ]]; then
+    echo "ERRO: teste Billing exige URL HTTPS completa terminada em /api/verify-subscription"
+    echo "Nada foi compilado."
+    exit 2
+  fi
+  export SILENCIUS_ENFORCE_BILLING=true
+  echo "Silêncius — BUILD DE HOMOLOGAÇÃO COM GOOGLE PLAY BILLING."
+  echo "Use apenas a faixa TESTE INTERNO com contas testadoras de licença."
+else
+  export SILENCIUS_ENFORCE_BILLING=false
+  export SILENCIUS_BILLING_VERIFY_URL=""
+  echo "Silêncius — AAB para teste interno com cobrança DESATIVADA."
+fi
 [[ -x "$JAVA_HOME/bin/java" ]] || { echo "Java 21 não encontrado"; exit 1; }
 [[ -f android/local.properties ]] || printf 'sdk.dir=%s\n' "$ANDROID_HOME" > android/local.properties
 
