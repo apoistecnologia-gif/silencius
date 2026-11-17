@@ -116,8 +116,12 @@ async function verifyPurchase(purchaseToken) {
   const sub = await playRequest(
     base + '/subscriptionsv2/tokens/' + encodeURIComponent(purchaseToken), token
   );
-  if (sub.packageName !== packageName) {
-    throw billingError('google_purchase_package_mismatch');
+  // purchases.subscriptionsv2.get NÃO retorna packageName no corpo.
+  // A associação ao aplicativo é validada pelo próprio endpoint Google
+  // /applications/{packageName}/purchases/subscriptionsv2/tokens/{token}.
+  // Rejeitar packageName ausente aqui impediria toda compra legítima.
+  if (!sub || typeof sub !== 'object' || !Array.isArray(sub.lineItems)) {
+    throw billingError('google_purchase_invalid_response');
   }
   const state = evaluateSubscription(sub);
   if (state.active && sub.acknowledgementState === 'ACKNOWLEDGEMENT_STATE_PENDING') {
