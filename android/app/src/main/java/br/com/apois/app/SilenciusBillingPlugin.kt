@@ -111,7 +111,7 @@ class SilenciusBillingPlugin : Plugin() {
             put("basePlanId", BASE_PLAN_ID)
             put("trialOfferId", TRIAL_OFFER_ID)
             put("purchaseEnabled", purchasesEnabled())
-            put("priceExpected", "R$ 9,90/mês")
+            put("priceExpected", "R$ 14,90/mês")
         })
     }
 
