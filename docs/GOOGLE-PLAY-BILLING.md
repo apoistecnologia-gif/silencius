@@ -1,4 +1,4 @@
-# Silêncius Premium — implantação segura (R$ 9,90/mês, 3 dias gratuitos)
+# Silêncius Premium — implantação segura (R$ 14,90/mês, 3 dias gratuitos)
 
 > **ESTÁGIO: DESENVOLVIMENTO. NÃO PUBLICAR EM PRODUÇÃO.**
 > A branch `feat/play-billing-assinatura-20261117` não modifica a versão pública.
@@ -13,14 +13,14 @@
 | Produto de assinatura | `silencius_premium` |
 | Plano básico de renovação automática | `mensal` |
 | Recorrência | 1 mês |
-| Preço no Brasil | R$ 9,90 por mês |
+| Preço no Brasil | R$ 14,90 por mês |
 | Oferta de teste gratuito | `teste-3-dias` |
 | Fase de teste | 3 dias, preço R$ 0,00 |
 | Elegibilidade | Novos assinantes (a Google Play decide elegibilidade) |
 
 No Google Play Console: **Monetize com o Google Play → Produtos → Assinaturas**.
 Criar `silencius_premium`; criar o plano `mensal` com cobrança automática mensal;
-definir R$ 9,90 para o Brasil; ativar o plano. Depois adicionar oferta
+definir R$ 14,90 para o Brasil; ativar o plano. Depois adicionar oferta
 `teste-3-dias`, benefício de **teste gratuito por 3 dias**, novos assinantes,
 e ativar a oferta. Não alterar IDs depois de ativados.
 
