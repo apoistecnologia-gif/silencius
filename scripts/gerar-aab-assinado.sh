@@ -99,8 +99,17 @@ if (cd android && bash ./gradlew --no-daemon --max-workers=2 --console=plain :ap
   if "$JAVA_HOME/bin/jarsigner" -verify "$bundle" >> "$LOG" 2>&1; then
     echo
     echo "✅ AAB ASSINADO GERADO E ASSINATURA VERIFICADA."
-    echo "Arquivo: $bundle"
-    ls -lh "$bundle"
+    version_code=$(sed -nE 's/^[[:space:]]*versionCode[[:space:]]+([0-9]+).*/\\1/p' "$ROOT/android/app/build.gradle" | head -n 1)
+    version_name=$(sed -nE 's/^[[:space:]]*versionName[[:space:]]+"([^"]+)".*/\\1/p' "$ROOT/android/app/build.gradle" | head -n 1)
+    [[ "$version_code" =~ ^[0-9]+$ && -n "$version_name" ]] || {
+      echo "Não foi possível identificar a versão; AAB permanece em $bundle"
+      exit 1
+    }
+    named_bundle="$ROOT/SILENCIUS-${version_name}-code${version_code}.aab"
+    cp "$bundle" "$named_bundle"
+    chmod 600 "$named_bundle"
+    echo "Arquivo para baixar e enviar no teste interno: $named_bundle"
+    ls -lh "$named_bundle"
     echo "Use somente TESTE INTERNO da Google Play, não Produção."
   else
     echo "AAB gerado, mas a verificação da assinatura falhou."
