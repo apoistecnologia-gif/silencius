@@ -9,6 +9,12 @@ import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
 import com.android.billingclient.api.Purchase
+import android.net.Uri
+import java.net.HttpURLConnection
+import java.net.URL
+import java.time.Instant
+import java.util.concurrent.Executors
+import org.json.JSONObject
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
@@ -28,12 +34,15 @@ class SilenciusBillingPlugin : Plugin() {
         private const val BASE_PLAN_ID = "mensal"
         private const val TRIAL_OFFER_ID = "teste-3-dias"
 
-        // NÃO habilitar cobrança em produção sem verificação de token + reconhecimento da compra.
-        private const val PURCHASE_FLOW_ENABLED = false
+        // Só liberar cobrança em builds explicitamente habilitados e com backend HTTPS.
+        private fun purchasesEnabled() =
+            BuildConfig.BILLING_ENFORCEMENT_ENABLED &&
+                BuildConfig.BILLING_VERIFY_URL.startsWith("https://")
     }
 
     private var client: BillingClient? = null
     private var connecting = false
+    private val io = Executors.newSingleThreadExecutor()
     private val pendingActions = mutableListOf<Pair<PluginCall, () -> Unit>>()
 
     override fun load() {
@@ -46,8 +55,13 @@ class SilenciusBillingPlugin : Plugin() {
                     it.purchaseState == Purchase.PurchaseState.PURCHASED &&
                         it.products.contains(PRODUCT_ID)
                 } == true)
-                // Aviso apenas: NÃO é confirmação de direito de uso.
                 notifyListeners("purchaseUpdated", update)
+                if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                    purchases?.firstOrNull {
+                        it.purchaseState == Purchase.PurchaseState.PURCHASED &&
+                            it.products.contains(PRODUCT_ID)
+                    }?.let { verifyOnBackend(it, null) }
+                }
             }
             .enablePendingPurchases(
                 PendingPurchasesParams.newBuilder().enableOneTimeProducts().build()
@@ -93,7 +107,7 @@ class SilenciusBillingPlugin : Plugin() {
             put("productId", PRODUCT_ID)
             put("basePlanId", BASE_PLAN_ID)
             put("trialOfferId", TRIAL_OFFER_ID)
-            put("purchaseEnabled", PURCHASE_FLOW_ENABLED)
+            put("purchaseEnabled", purchasesEnabled())
             put("priceExpected", "R$ 9,90/mês")
         })
     }
@@ -159,29 +173,128 @@ class SilenciusBillingPlugin : Plugin() {
                     it.products.contains(PRODUCT_ID) &&
                         it.purchaseState == Purchase.PurchaseState.PURCHASED
                 }
-                call.resolve(JSObject().apply {
-                    put("found", owned.isNotEmpty())
-                    put("verified", false)
-                    put("message", if (owned.isEmpty()) "Nenhuma assinatura encontrada nesta conta Google Play"
-                        else "Compra encontrada. Falta confirmar sua validade no servidor.")
-                })
+                val purchased = owned.firstOrNull()
+                if (purchased == null) {
+                    SubscriptionAccess.updateVerified(context, false, 0L)
+                    GuardService.stop(context)
+                    WatchdogReceiver.cancel(context)
+                    call.resolve(JSObject().apply {
+                        put("found", false)
+                        put("verified", true)
+                        put("active", false)
+                        put("message", "Nenhuma assinatura ativa nesta conta Google Play")
+                    })
+                } else {
+                    verifyOnBackend(purchased, call)
+                }
             }
         }
     }
 
     @PluginMethod
     fun purchase(call: PluginCall) {
-        if (!PURCHASE_FLOW_ENABLED) {
-            call.reject("Cobranças ainda não habilitadas: primeiro é necessário validar compras em um servidor seguro.")
+        if (!purchasesEnabled()) {
+            call.reject("Assinaturas ainda não habilitadas neste build.")
             return
         }
-        // A implementação de lançamento deve ser ativada somente após a verificação
-        // segura e o reconhecimento da compra terem sido integrados e homologados.
-        call.reject("Fluxo de pagamento aguardando homologação.")
+        whenConnected(call) {
+            val c = client ?: return@whenConnected
+            val params = QueryProductDetailsParams.newBuilder()
+                .setProductList(listOf(QueryProductDetailsParams.Product.newBuilder()
+                    .setProductId(PRODUCT_ID).setProductType(BillingClient.ProductType.SUBS).build()))
+                .build()
+            // Consultar oferta no momento de comprar, sem reutilizar dados antigos.
+            c.queryProductDetailsAsync(params) { result, products ->
+                val details = products.productDetailsList.firstOrNull { it.productId == PRODUCT_ID }
+                if (result.responseCode != BillingClient.BillingResponseCode.OK || details == null) {
+                    call.reject("Plano mensal indisponível na Google Play")
+                    return@queryProductDetailsAsync
+                }
+                val eligible = details.subscriptionOfferDetails.orEmpty()
+                    .filter { it.basePlanId == BASE_PLAN_ID }
+                val offer = eligible.firstOrNull { it.offerId == TRIAL_OFFER_ID &&
+                    it.pricingPhases.pricingPhaseList.any { p ->
+                        p.billingPeriod == "P3D" && p.priceAmountMicros == 0L
+                    }
+                } ?: eligible.firstOrNull { it.offerId == null }
+                if (offer == null) {
+                    call.reject("Nenhuma oferta mensal disponível para esta conta")
+                    return@queryProductDetailsAsync
+                }
+                val flow = BillingFlowParams.newBuilder().setProductDetailsParamsList(
+                    listOf(BillingFlowParams.ProductDetailsParams.newBuilder()
+                        .setProductDetails(details).setOfferToken(offer.offerToken).build())
+                ).build()
+                activity.runOnUiThread {
+                    val launch = c.launchBillingFlow(activity, flow)
+                    if (launch.responseCode == BillingClient.BillingResponseCode.OK) {
+                        call.resolve(JSObject().apply { put("launched", true) })
+                    } else {
+                        call.reject("Google Play: ${launch.debugMessage}")
+                    }
+                }
+            }
+        }
+    }
+
+    /** Consulta a API da APOIS que valida e reconhece a compra junto ao Google Play. */
+    private fun verifyOnBackend(purchase: Purchase, call: PluginCall?) {
+        if (!BuildConfig.BILLING_VERIFY_URL.startsWith("https://")) {
+            call?.reject("Servidor de validação não configurado")
+            return
+        }
+        io.execute {
+            try {
+                val conn = (URL(BuildConfig.BILLING_VERIFY_URL).openConnection() as HttpURLConnection)
+                conn.requestMethod = "POST"
+                conn.connectTimeout = 10000
+                conn.readTimeout = 10000
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.doOutput = true
+                try {
+                    val body = JSONObject().put("purchaseToken", purchase.purchaseToken).toString()
+                    conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                    val code = conn.responseCode
+                    if (code != 200) throw IllegalStateException("Falha HTTP ${code}")
+                    val result = conn.inputStream.bufferedReader().use { JSONObject(it.readText()) }
+                    val expires = result.optString("expiryTime", "")
+                    val expiryMs = runCatching { Instant.parse(expires).toEpochMilli() }.getOrDefault(0L)
+                    val active = result.optBoolean("active", false) && expiryMs > System.currentTimeMillis()
+                    SubscriptionAccess.updateVerified(context, active, expiryMs)
+                    if (!active) {
+                        GuardService.stop(context)
+                        WatchdogReceiver.cancel(context)
+                    } else if (Prefs.isEnabled(context)) {
+                        GuardService.start(context)
+                        WatchdogReceiver.schedule(context)
+                    }
+                    val data = JSObject().apply {
+                        put("verified", true)
+                        put("active", active)
+                        put("expiryTime", expires)
+                        put("subscriptionState", result.optString("subscriptionState"))
+                    }
+                    activity.runOnUiThread {
+                        notifyListeners("subscriptionVerified", data)
+                        call?.resolve(data)
+                    }
+                } finally {
+                    conn.disconnect()
+                }
+            } catch (error: Exception) {
+                activity.runOnUiThread {
+                    notifyListeners("subscriptionVerificationFailed", JSObject().apply {
+                        put("message", "Não foi possível verificar a assinatura agora")
+                    })
+                    call?.reject("Não foi possível verificar a assinatura agora")
+                }
+            }
+        }
     }
 
     override fun handleOnDestroy() {
         pendingActions.clear()
+        io.shutdown()
         client?.endConnection()
         client = null
         super.handleOnDestroy()
