@@ -6,6 +6,7 @@ import com.getcapacitor.BridgeActivity
 class MainActivity : BridgeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         registerPlugin(SilencePlugin::class.java)
+        registerPlugin(SilenciusBillingPlugin::class.java)
         super.onCreate(savedInstanceState)
     }
 }
