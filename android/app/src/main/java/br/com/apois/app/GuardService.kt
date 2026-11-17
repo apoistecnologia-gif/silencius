@@ -55,13 +55,13 @@ class GuardService : Service() {
     override fun onCreate() {
         super.onCreate()
         startForeground(NOTIF_ID, buildNotification())
-        if (Prefs.isEnabled(this)) WatchdogReceiver.schedule(this)
+        if (Prefs.isEnabled(this) && SubscriptionAccess.isAllowed(this)) WatchdogReceiver.schedule(this)
         Log.i(TAG, "serviço de proteção iniciado")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Se o usuário desligou a proteção, o serviço se encerra.
-        if (!Prefs.isEnabled(this)) {
+        if (!Prefs.isEnabled(this) || !SubscriptionAccess.isAllowed(this)) {
             stopSelf()
             return START_NOT_STICKY
         }
