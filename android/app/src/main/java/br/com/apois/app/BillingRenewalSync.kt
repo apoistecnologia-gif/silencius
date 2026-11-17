@@ -132,7 +132,9 @@ object BillingRenewalSync {
                 }
 
                 override fun onBillingServiceDisconnected() {
-                    // O próximo vigia ou retomada da Activity tentará outra vez.
+                    // Nunca deixar a trava em execução permanentemente se o
+                    // Google Play desconectar antes de concluir a consulta.
+                    finish()
                 }
             })
         } catch (_: Exception) {
